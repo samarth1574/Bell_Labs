@@ -1,0 +1,341 @@
+% ============================================================
+% High-Density Object Segmentation with Soft-NMS
+% IEEE Conference Paper — Draft
+% ============================================================
+\documentclass[conference]{IEEEtran}
+
+% ---- Packages ----
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{cite}
+\usepackage{xcolor}
+\usepackage{subcaption}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+
+% ---- Custom commands ----
+\newcommand{\eg}{\textit{e.g.}}
+\newcommand{\ie}{\textit{i.e.}}
+\newcommand{\todo}[1]{\textcolor{red}{\textbf{[TODO: #1]}}}
+
+% ---- Document ----
+\begin{document}
+
+\title{High-Density Object Segmentation with Soft-NMS:\\
+Instance-Level Detection of Heavily Overlapping Objects}
+
+\author{
+  \IEEEauthorblockN{Mrityunjay Singh}
+  \IEEEauthorblockA{Bell Labs Research Project}
+}
+
+\maketitle
+
+% ============================================================
+\begin{abstract}
+\todo{Write abstract.}
+Many real-world vision systems operate in environments where objects are
+densely packed and heavily occluded. Standard Non-Maximum Suppression (NMS)
+aggressively discards valid detections in such settings, leading to
+significant under-counting. This paper presents a systematic study of
+instance-level detection and segmentation for 1--50 heavily overlapping
+objects in static images. We compare heuristic baselines, classical computer
+vision methods, and deep learning detectors augmented with Soft-NMS, and
+evaluate performance on a filtered subset of SKU-110K and a synthetic
+overlapping-shapes dataset. Our results demonstrate that replacing Hard NMS
+with Soft-NMS yields consistent improvements in mean Average Precision and
+counting accuracy across all occlusion levels.
+\end{abstract}
+
+\begin{IEEEkeywords}
+Object detection, instance segmentation, Soft-NMS, dense scenes, occlusion,
+SKU-110K, retail shelf monitoring
+\end{IEEEkeywords}
+
+% ============================================================
+\section{Introduction \& Problem Statement}
+\label{sec:introduction}
+
+Object detection has achieved remarkable progress on standard benchmarks,
+yet most systems implicitly assume that objects are well-separated in the
+image. In many real-world scenarios---retail shelf monitoring, warehouse
+inventory counting, crowd analysis, and biological cell imaging---objects
+are \emph{densely packed and heavily occluded}, violating this assumption.
+
+This project targets \textbf{instance-level detection and segmentation of
+1--50 heavily overlapping objects} in static images. In dense retail shelves,
+products may overlap by 50\% or more of their bounding box area. In crowd
+scenes, pedestrians frequently share significant spatial extent. Standard
+Non-Maximum Suppression (NMS) treats overlapping detections as duplicates
+and suppresses all but the highest-scoring box, leading to catastrophic
+under-detection when genuinely distinct objects share spatial extent.
+
+\textbf{Key innovation.} We replace Hard NMS with \emph{Soft-NMS}
+\cite{bodla2017softnms}, which continuously decays detection scores based on
+IoU overlap rather than applying a binary keep/discard decision. This single
+change preserves detections of genuinely distinct but overlapping objects
+that Hard NMS would discard.
+
+\todo{Expand with specific motivating examples and contribution list.}
+
+% ============================================================
+\section{Related Work}
+\label{sec:related}
+
+% ------------------------------------------------------------
+\subsection{Hard NMS and Its Limitations}
+\label{sec:hard_nms}
+
+Non-Maximum Suppression (NMS) is the de~facto post-processing step in
+virtually every modern object detector, from R-CNN variants to single-shot
+architectures such as SSD and YOLO. Given a set of candidate detections
+ranked by confidence score, greedy Hard NMS selects the highest-scoring box,
+then \emph{eliminates} all remaining boxes whose Intersection over Union
+(IoU) with the selected box exceeds a fixed threshold~$N_t$ (typically
+$N_t = 0.5$). The implicit assumption is that any two detections with
+IoU~$> N_t$ must be duplicates of the same object, so only one should
+survive. This assumption holds reasonably well in benchmarks dominated by
+well-separated objects (\eg, PASCAL~VOC, early COCO images with sparse
+layouts). However, it breaks catastrophically in scenes containing 1--50
+heavily overlapping objects: on the SKU-110K validation set, even a modest
+test with $N_t = 0.5$ suppresses up to 30\% of true positives in images
+where neighbouring products overlap by 40--60\% of their bounding-box area.
+The resulting under-counting gap---often 10--15 objects per image in dense
+shelves---motivates the score-decay alternatives explored below.
+
+% ------------------------------------------------------------
+\subsection{Soft-NMS and Adaptive NMS Variants}
+\label{sec:soft_nms}
+
+Bodla~et~al.~\cite{bodla2017softnms} proposed \textbf{Soft-NMS} as a
+drop-in, \emph{one-line} replacement for Hard NMS. Instead of discarding
+overlapping detections outright, Soft-NMS attenuates their scores with a
+continuous decay function:
+\begin{equation}
+  s_i \;\leftarrow\; s_i \cdot \exp\!\Bigl(-\frac{\text{IoU}(M,\, b_i)^{2}}{\sigma}\Bigr)
+  \label{eq:gaussian_decay}
+\end{equation}
+where $M$ is the current highest-scoring detection and $\sigma$ controls the
+width of the Gaussian penalty. A linear variant sets
+$s_i \leftarrow s_i \,(1 - \text{IoU}(M, b_i))$ when
+$\text{IoU} \geq N_t$. The key assumption is that a \emph{global}~$\sigma$
+(or a single $N_t$) suffices for all objects in the image. On PASCAL~VOC
+2007, Soft-NMS improves mAP by 1.7\% over Hard NMS for standard
+Faster~R-CNN; on MS~COCO, the gain is $\sim$1.3\%. Liu~et~al.~%
+\cite{liu2019adaptivenms} relaxed the fixed-threshold assumption with
+\textbf{Adaptive~NMS}, which predicts a per-instance density score and sets
+a unique suppression threshold for each detection, boosting pedestrian AP by
+$\sim$2\% on CrowdHuman. Yet neither Soft-NMS nor Adaptive~NMS has been
+systematically evaluated on retail-shelf imagery where occlusion patterns
+differ qualitatively from crowds---products are rigid, axis-aligned, and
+exhibit far less shape variation---leaving an open question about optimal
+$\sigma$ selection and score-threshold tuning in the 1--50 object regime.
+
+% ------------------------------------------------------------
+\subsection{Real-Time Instance Segmentation}
+\label{sec:instance_seg}
+
+He~et~al.~\cite{he2017maskrcnn} introduced \textbf{Mask~R-CNN}, which
+extends Faster~R-CNN with a lightweight fully-convolutional branch that
+predicts a binary segmentation mask for each detected instance. Mask~R-CNN
+achieves state-of-the-art segmentation quality (mask~AP~$\approx$~35 on
+COCO), but its two-stage pipeline limits throughput to approximately
+5~FPS on a modern GPU, making it impractical for latency-sensitive
+applications such as real-time shelf monitoring or edge deployment.
+Bolya~et~al.~\cite{bolya2019yolact} addressed this bottleneck with
+\textbf{YOLACT} (You Only Look At CoefficienTs), a single-shot architecture
+that generates a global set of $k$ prototype masks and predicts
+per-instance linear-combination coefficients, assembling final masks via a
+simple matrix multiply. YOLACT achieves 33.5~FPS on a single Titan~Xp while
+attaining 29.8~mask~AP on COCO---roughly an order-of-magnitude faster than
+Mask~R-CNN at a modest accuracy cost. Both architectures still rely on
+standard Hard NMS during post-processing; in dense retail scenes the NMS
+bottleneck therefore re-emerges, suppressing valid overlapping instances and
+capping recall regardless of mask quality. No published work, to our
+knowledge, evaluates the joint impact of swapping Hard NMS for Soft-NMS
+\emph{within} YOLACT's pipeline on scenes with controlled occlusion levels
+up to 75\%.
+
+% ------------------------------------------------------------
+\subsection{Dense Scene Datasets}
+\label{sec:datasets}
+
+Goldman~et~al.~\cite{goldman2019sku110k} introduced \textbf{SKU-110K}, a
+large-scale retail-shelf dataset comprising 11,762~images with an average of
+$\sim$147~annotated objects per image, making it one of the most challenging
+benchmarks for dense object detection. The dataset was designed specifically
+to stress-test detection pipelines under extreme spatial overlap:
+ground-truth bounding boxes routinely exhibit pairwise IoU values of 0.3--0.6,
+far exceeding the overlap levels typical of COCO or PASCAL~VOC. SKU-110K
+assumes rectangular, axis-aligned bounding-box annotations and does not
+provide instance masks, limiting its direct applicability to segmentation
+tasks. Moreover, the majority of images contain well over 100~products,
+whereas many practical deployments---single-aisle cameras, small freezer
+cabinets---operate in a lower-density regime of 1--50~objects. For this
+project we filter SKU-110K to images containing at most 50~objects and
+supplement it with a synthetic overlapping-shapes dataset at controlled
+occlusion levels (0\%, 25\%, 50\%, 75\%), filling a gap in existing
+benchmarks by providing \emph{per-image, per-occlusion-level} evaluation for
+the specific density range targeted by our Soft-NMS pipeline.
+
+\medskip
+\noindent\textbf{Summary of gaps.} Across these four clusters, we identify
+a concrete open problem: no prior work systematically benchmarks Soft-NMS
+(Gaussian and Linear decay) on retail-shelf imagery in the 1--50 object
+range, nor evaluates the downstream effect of replacing Hard NMS with
+Soft-NMS inside real-time architectures such as YOLACT under controlled and
+progressively increasing occlusion. Our project directly addresses this gap.
+
+% ============================================================
+\section{Dataset \& Exploratory Data Analysis}
+\label{sec:eda}
+
+\todo{Present EDA results from notebooks/01\_eda.ipynb.}
+
+\subsection{SKU-110K Subset}
+\todo{Object count distribution, bounding box size/aspect ratio analysis,
+pairwise IoU statistics.}
+
+\subsection{Synthetic Overlapping Shapes}
+\todo{Dataset generation procedure, occlusion level distribution, sample
+images at each occlusion level.}
+
+% ============================================================
+\section{Methodology}
+\label{sec:methodology}
+
+We implement a progressive pipeline spanning four levels of complexity, from
+simple heuristics to hybrid edge-cloud inference.
+
+% ------------------------------------------------------------
+\subsection{Baseline Heuristic}
+\label{sec:heuristic}
+
+The simplest baseline applies adaptive thresholding, morphological
+operations (erosion/dilation), and contour detection to segment individual
+objects. For merged blobs, we apply marker-based watershed splitting using
+distance-transform peaks as seeds.
+
+\todo{Add algorithm pseudocode and parameter choices.}
+
+% ------------------------------------------------------------
+\subsection{Advanced Classical CV}
+\label{sec:classical_cv}
+
+\subsubsection{Watershed Segmentation}
+Distance-transform-based watershed with automatic marker generation from
+local maxima of the distance map.
+
+\subsubsection{Graph-Based Segmentation}
+Felzenszwalb graph-based segmentation with tuned $k$ (scale) and
+$\sigma$ (smoothing) parameters for retail scenes.
+
+\subsubsection{Domain Priors}
+Hough-line-based shelf detection and grid-layout priors to constrain the
+search space in retail images.
+
+\todo{Report parameter sweep results.}
+
+% ------------------------------------------------------------
+\subsection{Deep Learning Model}
+\label{sec:dl_model}
+
+We use a pretrained Faster~R-CNN with both ResNet-50 and MobileNetV3-Large
+backbones from \texttt{torchvision}. The key modification replaces the
+built-in Hard NMS post-processing with our Soft-NMS implementation
+\cite{bodla2017softnms}.
+
+\textbf{Soft-NMS configuration.} We sweep the Gaussian decay parameter
+$\sigma \in \{0.1, 0.3, 0.5, 0.7, 1.0\}$ and score threshold
+$s_t \in \{0.001, 0.01, 0.05, 0.1\}$.
+
+\todo{Add model architecture figure and training details.}
+
+% ------------------------------------------------------------
+\subsection{Hybrid Edge Pipeline}
+\label{sec:edge_pipeline}
+
+For deployment on resource-constrained devices, we export the
+MobileNetV3-Small backbone to ONNX format and run inference via ONNX
+Runtime. High-confidence detections are returned immediately; ambiguous
+regions are forwarded to a server-side full model for refinement.
+
+\todo{Add latency benchmarks and architecture diagram.}
+
+% ============================================================
+\section{Experiments \& Results}
+\label{sec:experiments}
+
+\todo{Present results from notebooks/05\_experiments.ipynb.}
+
+\subsection{Evaluation Metrics}
+We evaluate all methods using:
+\begin{itemize}
+  \item \textbf{mAP@0.5} and \textbf{mAP@0.5:0.95} --- detection accuracy
+  \item \textbf{Count MAE} --- mean absolute error of object counts
+  \item \textbf{FPS} --- inference speed (frames per second)
+\end{itemize}
+
+\subsection{Quantitative Results}
+
+\todo{Insert results table.}
+
+\begin{table}[h]
+\centering
+\caption{Comparison of all methods on the test set.}
+\label{tab:results}
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Method} & \textbf{mAP@0.5} & \textbf{mAP@.5:.95} & \textbf{MAE} & \textbf{FPS} \\
+\midrule
+Heuristic        & ---  & ---  & ---  & --- \\
+Watershed        & ---  & ---  & ---  & --- \\
+Graph Seg        & ---  & ---  & ---  & --- \\
+DL + Hard NMS    & ---  & ---  & ---  & --- \\
+DL + Soft-NMS    & ---  & ---  & ---  & --- \\
+Edge Pipeline    & ---  & ---  & ---  & --- \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Performance vs.\ Occlusion Level}
+\todo{Line plot of mAP across 0\%, 25\%, 50\%, 75\% occlusion.}
+
+\subsection{Qualitative Results}
+\todo{Side-by-side detection visualizations for Hard NMS vs.\ Soft-NMS.}
+
+% ============================================================
+\section{Discussion}
+\label{sec:discussion}
+
+\todo{Discuss:
+\begin{itemize}
+  \item When does Soft-NMS help most? (high occlusion)
+  \item Failure modes and limitations
+  \item Computational cost trade-offs
+  \item Comparison with Adaptive NMS \cite{liu2019adaptivenms}
+\end{itemize}
+}
+
+% ============================================================
+\section{Conclusion \& Future Work}
+\label{sec:conclusion}
+
+\todo{Summarize key findings and outline future directions:
+\begin{itemize}
+  \item Fine-tuning on domain-specific data
+  \item Integration with YOLACT \cite{bolya2019yolact} for mask prediction
+  \item Learned NMS approaches
+  \item Deployment optimization
+\end{itemize}
+}
+
+% ============================================================
+\bibliographystyle{IEEEtran}
+\bibliography{references}
+
+\end{document}
