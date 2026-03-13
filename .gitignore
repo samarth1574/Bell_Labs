@@ -48,7 +48,7 @@ data/synthetic/metadata.csv
 *.pth
 *.onnx
 *.tflite
-models/
+/models/
 checkpoints/
 
 # ============================================================
