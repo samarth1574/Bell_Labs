@@ -35,15 +35,15 @@ Usage:
     keep, new_scores = soft_nms(boxes, scores, sigma=0.5, method='gaussian')
 """
 
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, Tuple
 
-import torch
 import numpy as np
-
+import torch
 
 # ====================================================================
 # IoU Computation (Vectorised)
 # ====================================================================
+
 
 def _compute_iou_vector(
     box: torch.Tensor,
@@ -81,6 +81,7 @@ def _compute_iou_vector(
 # ====================================================================
 # Soft-NMS Core
 # ====================================================================
+
 
 def soft_nms(
     boxes: torch.Tensor,
@@ -199,7 +200,7 @@ def soft_nms(
         remaining_scores = scores_work[remaining_indices]
 
         if method == "gaussian":
-            decay = torch.exp(-(ious ** 2) / sigma)
+            decay = torch.exp(-(ious**2) / sigma)
             remaining_scores = remaining_scores * decay
 
         elif method == "linear":
@@ -229,6 +230,7 @@ def soft_nms(
 # Numpy Wrapper (for non-PyTorch pipelines)
 # ====================================================================
 
+
 def soft_nms_np(
     boxes: np.ndarray,
     scores: np.ndarray,
@@ -246,7 +248,8 @@ def soft_nms_np(
     scores_t = torch.from_numpy(scores.astype(np.float32))
 
     keep, new_scores = soft_nms(
-        boxes_t, scores_t,
+        boxes_t,
+        scores_t,
         sigma=sigma,
         score_threshold=score_threshold,
         iou_threshold=iou_threshold,
@@ -259,6 +262,7 @@ def soft_nms_np(
 # ====================================================================
 # Comparison Utility
 # ====================================================================
+
 
 def compare_nms_methods(
     boxes: torch.Tensor,
@@ -278,7 +282,8 @@ def compare_nms_methods(
     results = {}
     for method in ["hard", "linear", "gaussian"]:
         keep, new_scores = soft_nms(
-            boxes, scores,
+            boxes,
+            scores,
             sigma=sigma,
             score_threshold=score_threshold,
             iou_threshold=iou_threshold,
@@ -295,6 +300,7 @@ def compare_nms_methods(
 # ====================================================================
 # Unit Tests
 # ====================================================================
+
 
 def _run_tests():
     """
@@ -315,13 +321,16 @@ def _run_tests():
     print("=" * 50)
 
     # Test boxes: [x1, y1, x2, y2]
-    boxes = torch.tensor([
-        [10, 10, 60, 60],    # Box 0: score=0.95
-        [20, 15, 65, 62],    # Box 1: overlaps with 0, score=0.90
-        [100, 100, 150, 160],  # Box 2: score=0.80
-        [110, 110, 160, 170],  # Box 3: overlaps with 2, score=0.70
-        [200, 200, 250, 250],  # Box 4: isolated, score=0.60
-    ], dtype=torch.float32)
+    boxes = torch.tensor(
+        [
+            [10, 10, 60, 60],  # Box 0: score=0.95
+            [20, 15, 65, 62],  # Box 1: overlaps with 0, score=0.90
+            [100, 100, 150, 160],  # Box 2: score=0.80
+            [110, 110, 160, 170],  # Box 3: overlaps with 2, score=0.70
+            [200, 200, 250, 250],  # Box 4: isolated, score=0.60
+        ],
+        dtype=torch.float32,
+    )
 
     scores = torch.tensor([0.95, 0.90, 0.80, 0.70, 0.60])
 
@@ -352,7 +361,7 @@ def _run_tests():
                 print(f"    ✓ PASS: {n} ≤ {len(boxes)}")
         else:
             # Soft variants should generally keep more boxes
-            print(f"    ✓ PASS: returned valid results")
+            print("    ✓ PASS: returned valid results")
 
     # Test edge cases
     print("\n  [EDGE CASES]")

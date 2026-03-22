@@ -16,15 +16,15 @@ Usage:
 """
 
 import time
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 from scipy.optimize import linear_sum_assignment
 
-
 # ====================================================================
 # 1. IoU Computation
 # ====================================================================
+
 
 def compute_iou(
     box_a: Sequence[float],
@@ -98,6 +98,7 @@ def compute_iou_matrix(
 # 2. Box Matching (Hungarian)
 # ====================================================================
 
+
 def match_boxes(
     pred_boxes: Union[List, np.ndarray],
     gt_boxes: Union[List, np.ndarray],
@@ -125,8 +126,16 @@ def match_boxes(
     unmatched_gts : list of int
         Indices of unmatched ground truths (false negatives).
     """
-    pred_boxes = np.asarray(pred_boxes, dtype=np.float64).reshape(-1, 4) if len(pred_boxes) else np.empty((0, 4))
-    gt_boxes = np.asarray(gt_boxes, dtype=np.float64).reshape(-1, 4) if len(gt_boxes) else np.empty((0, 4))
+    pred_boxes = (
+        np.asarray(pred_boxes, dtype=np.float64).reshape(-1, 4)
+        if len(pred_boxes)
+        else np.empty((0, 4))
+    )
+    gt_boxes = (
+        np.asarray(gt_boxes, dtype=np.float64).reshape(-1, 4)
+        if len(gt_boxes)
+        else np.empty((0, 4))
+    )
 
     P = len(pred_boxes)
     G = len(gt_boxes)
@@ -164,6 +173,7 @@ def match_boxes(
 # 3. Average Precision (single image or class)
 # ====================================================================
 
+
 def compute_ap(
     pred_boxes: Union[List, np.ndarray],
     pred_scores: Union[List, np.ndarray],
@@ -187,9 +197,21 @@ def compute_ap(
     float
         AP in [0, 1].
     """
-    pred_boxes = np.asarray(pred_boxes, dtype=np.float64).reshape(-1, 4) if len(pred_boxes) else np.empty((0, 4))
-    pred_scores = np.asarray(pred_scores, dtype=np.float64).ravel() if len(pred_scores) else np.empty(0)
-    gt_boxes = np.asarray(gt_boxes, dtype=np.float64).reshape(-1, 4) if len(gt_boxes) else np.empty((0, 4))
+    pred_boxes = (
+        np.asarray(pred_boxes, dtype=np.float64).reshape(-1, 4)
+        if len(pred_boxes)
+        else np.empty((0, 4))
+    )
+    pred_scores = (
+        np.asarray(pred_scores, dtype=np.float64).ravel()
+        if len(pred_scores)
+        else np.empty(0)
+    )
+    gt_boxes = (
+        np.asarray(gt_boxes, dtype=np.float64).reshape(-1, 4)
+        if len(gt_boxes)
+        else np.empty((0, 4))
+    )
 
     P = len(pred_boxes)
     G = len(gt_boxes)
@@ -244,6 +266,7 @@ def compute_ap(
 # 4. Mean Average Precision (across images)
 # ====================================================================
 
+
 def compute_map(
     predictions: List[Dict[str, Any]],
     ground_truths: List[Dict[str, Any]],
@@ -273,9 +296,9 @@ def compute_map(
     # Also compute mAP@0.5:0.95
     coco_thresholds = np.arange(0.5, 1.0, 0.05)
 
-    assert len(predictions) == len(ground_truths), (
-        f"Length mismatch: {len(predictions)} predictions vs {len(ground_truths)} GTs"
-    )
+    assert len(predictions) == len(
+        ground_truths
+    ), f"Length mismatch: {len(predictions)} predictions vs {len(ground_truths)} GTs"
 
     results = {}
 
@@ -298,8 +321,10 @@ def compute_map(
         aps = []
         for pred, gt in zip(predictions, ground_truths):
             ap = compute_ap(
-                pred.get("boxes", []), pred.get("scores", []),
-                gt.get("boxes", []), iou_threshold=0.5,
+                pred.get("boxes", []),
+                pred.get("scores", []),
+                gt.get("boxes", []),
+                iou_threshold=0.5,
             )
             aps.append(ap)
         results["mAP@0.5"] = float(np.mean(aps))
@@ -314,8 +339,10 @@ def compute_map(
             aps = []
             for pred, gt in zip(predictions, ground_truths):
                 ap = compute_ap(
-                    pred.get("boxes", []), pred.get("scores", []),
-                    gt.get("boxes", []), iou_threshold=t,
+                    pred.get("boxes", []),
+                    pred.get("scores", []),
+                    gt.get("boxes", []),
+                    iou_threshold=t,
                 )
                 aps.append(ap)
             val = float(np.mean(aps))
@@ -329,6 +356,7 @@ def compute_map(
 # ====================================================================
 # 5. Count MAE
 # ====================================================================
+
 
 def count_mae(
     pred_counts: Union[List[int], np.ndarray],
@@ -365,6 +393,7 @@ def count_mae(
 # ====================================================================
 # 6. FPS Benchmark
 # ====================================================================
+
 
 def compute_fps(
     model: Any,
@@ -428,6 +457,7 @@ def compute_fps(
 # 7. Full Evaluation
 # ====================================================================
 
+
 def full_evaluation(
     predictions: List[Dict[str, Any]],
     ground_truths: List[Dict[str, Any]],
@@ -466,7 +496,7 @@ def full_evaluation(
 
     for i, (pred, gt) in enumerate(zip(predictions, ground_truths)):
         p_boxes = pred.get("boxes", [])
-        p_scores = pred.get("scores", [])
+#         p_scores = pred.get("scores", [])
         g_boxes = gt.get("boxes", [])
 
         n_pred = len(p_boxes)
@@ -487,17 +517,21 @@ def full_evaluation(
         f1 = 2 * prec * rec / (prec + rec) if (prec + rec) > 0 else 0.0
         avg_iou = float(np.mean([m[2] for m in matches])) if matches else 0.0
 
-        per_image.append({
-            "index": i,
-            "num_gt": n_gt,
-            "num_pred": n_pred,
-            "count_error": abs(n_pred - n_gt),
-            "tp": tp, "fp": fp, "fn": fn,
-            "precision": round(prec, 4),
-            "recall": round(rec, 4),
-            "f1": round(f1, 4),
-            "mean_iou": round(avg_iou, 4),
-        })
+        per_image.append(
+            {
+                "index": i,
+                "num_gt": n_gt,
+                "num_pred": n_pred,
+                "count_error": abs(n_pred - n_gt),
+                "tp": tp,
+                "fp": fp,
+                "fn": fn,
+                "precision": round(prec, 4),
+                "recall": round(rec, 4),
+                "f1": round(f1, 4),
+                "mean_iou": round(avg_iou, 4),
+            }
+        )
 
     # ---- Aggregate ----
     mae = count_mae(pred_counts_list, gt_counts_list)
@@ -533,6 +567,7 @@ def full_evaluation(
 # Unit Tests
 # ====================================================================
 
+
 def _run_tests(verbose: bool = False):
     """Comprehensive unit tests for all metric functions."""
     print("=" * 60)
@@ -554,43 +589,45 @@ def _run_tests(verbose: bool = False):
 
     # ---- 1. IoU ----
     print("\n[1] compute_iou")
-    _check("perfect overlap", compute_iou([0,0,10,10], [0,0,10,10]), 1.0)
-    _check("no overlap",      compute_iou([0,0,10,10], [20,20,30,30]), 0.0)
-    _check("partial overlap",
-           compute_iou([0,0,10,10], [5,5,15,15]),
-           25.0 / (100 + 100 - 25))
-    _check("zero-area box",   compute_iou([5,5,5,5], [0,0,10,10]), 0.0)
+    _check("perfect overlap", compute_iou([0, 0, 10, 10], [0, 0, 10, 10]), 1.0)
+    _check("no overlap", compute_iou([0, 0, 10, 10], [20, 20, 30, 30]), 0.0)
+    _check(
+        "partial overlap",
+        compute_iou([0, 0, 10, 10], [5, 5, 15, 15]),
+        25.0 / (100 + 100 - 25),
+    )
+    _check("zero-area box", compute_iou([5, 5, 5, 5], [0, 0, 10, 10]), 0.0)
 
     # ---- 2. match_boxes ----
     print("\n[2] match_boxes")
-    pred = [[0,0,10,10], [20,20,30,30], [100,100,110,110]]
-    gt =   [[1,1,11,11], [21,21,31,31]]
+    pred = [[0, 0, 10, 10], [20, 20, 30, 30], [100, 100, 110, 110]]
+    gt = [[1, 1, 11, 11], [21, 21, 31, 31]]
     matches, unm_p, unm_g = match_boxes(pred, gt, iou_threshold=0.5)
     _check("2 matches", len(matches), 2)
     _check("1 unmatched pred", len(unm_p), 1)
     _check("0 unmatched gt", len(unm_g), 0)
 
     # Empty cases
-    m, up, ug = match_boxes([], [[0,0,10,10]], 0.5)
+    m, up, ug = match_boxes([], [[0, 0, 10, 10]], 0.5)
     _check("empty pred → 0 matches", len(m), 0)
     _check("empty pred → 1 unmatched gt", len(ug), 1)
 
-    m, up, ug = match_boxes([[0,0,10,10]], [], 0.5)
+    m, up, ug = match_boxes([[0, 0, 10, 10]], [], 0.5)
     _check("empty gt → 1 unmatched pred", len(up), 1)
 
     # ---- 3. compute_ap ----
     print("\n[3] compute_ap")
     # Perfect detection
     ap = compute_ap(
-        [[0,0,10,10], [20,20,30,30]],
+        [[0, 0, 10, 10], [20, 20, 30, 30]],
         [0.9, 0.8],
-        [[0,0,10,10], [20,20,30,30]],
+        [[0, 0, 10, 10], [20, 20, 30, 30]],
         iou_threshold=0.5,
     )
     _check("perfect AP", ap, 1.0)
 
     # No predictions
-    ap = compute_ap([], [], [[0,0,10,10]], 0.5)
+    ap = compute_ap([], [], [[0, 0, 10, 10]], 0.5)
     _check("no predictions AP", ap, 0.0)
 
     # No GT
@@ -599,8 +636,8 @@ def _run_tests(verbose: bool = False):
 
     # ---- 4. compute_map ----
     print("\n[4] compute_map")
-    preds = [{"boxes": [[0,0,10,10]], "scores": [0.9]}]
-    gts =   [{"boxes": [[0,0,10,10]]}]
+    preds = [{"boxes": [[0, 0, 10, 10]], "scores": [0.9]}]
+    gts = [{"boxes": [[0, 0, 10, 10]]}]
     results = compute_map(preds, gts)
     _check("mAP@0.5 perfect", results["mAP@0.5"], 1.0)
     if verbose:
@@ -608,19 +645,19 @@ def _run_tests(verbose: bool = False):
 
     # ---- 5. count_mae ----
     print("\n[5] count_mae")
-    _check("exact counts", count_mae([5,10,3], [5,10,3]), 0.0)
-    _check("off by 1", count_mae([5,10,3], [4,11,2]), 1.0)
-    _check("mixed errors", count_mae([5,10,3], [4,12,3]), 1.0, tol=0.4)
+    _check("exact counts", count_mae([5, 10, 3], [5, 10, 3]), 0.0)
+    _check("off by 1", count_mae([5, 10, 3], [4, 11, 2]), 1.0)
+    _check("mixed errors", count_mae([5, 10, 3], [4, 12, 3]), 1.0, tol=0.4)
 
     # ---- 6. full_evaluation ----
     print("\n[6] full_evaluation")
     preds = [
-        {"boxes": [[0,0,10,10], [20,20,30,30]], "scores": [0.9, 0.8]},
-        {"boxes": [[50,50,60,60]], "scores": [0.7]},
+        {"boxes": [[0, 0, 10, 10], [20, 20, 30, 30]], "scores": [0.9, 0.8]},
+        {"boxes": [[50, 50, 60, 60]], "scores": [0.7]},
     ]
     gts = [
-        {"boxes": [[0,0,10,10], [20,20,30,30]]},
-        {"boxes": [[50,50,60,60], [70,70,80,80]]},
+        {"boxes": [[0, 0, 10, 10], [20, 20, 30, 30]]},
+        {"boxes": [[50, 50, 60, 60], [70, 70, 80, 80]]},
     ]
     result = full_evaluation(preds, gts)
     _check("full_eval precision", result["avg_precision"], 1.0)
@@ -642,6 +679,7 @@ def _run_tests(verbose: bool = False):
 
 if __name__ == "__main__":
     import argparse
+
     parser = argparse.ArgumentParser(description="Run evaluation metrics tests")
     parser.add_argument("--verbose", action="store_true")
     args = parser.parse_args()

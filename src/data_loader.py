@@ -15,12 +15,10 @@ Provides:
 """
 
 import json
-import os
-import sys
 import urllib.request
 import zipfile
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Optional
 
 import numpy as np
 import pandas as pd
@@ -45,14 +43,21 @@ _SKU110K_URLS = [
 ]
 
 EXPECTED_COLUMNS = [
-    "image_name", "x1", "y1", "x2", "y2",
-    "class", "image_width", "image_height",
+    "image_name",
+    "x1",
+    "y1",
+    "x2",
+    "y2",
+    "class",
+    "image_width",
+    "image_height",
 ]
 
 
 # ====================================================================
 # Download
 # ====================================================================
+
 
 def download_sku110k_annotations(
     output_path: Optional[Path] = None,
@@ -150,9 +155,10 @@ def _download_with_progress(url: str, dest: Path, timeout: int = 120) -> None:
                     pct = downloaded / total * 100
                     mb = downloaded / 1e6
                     print(
-                        f"\r[download]   {mb:.1f} MB / {total/1e6:.1f} MB "
+                        f"\r[download]   {mb:.1f} MB / {total / 1e6:.1f} MB "
                         f"({pct:.0f}%)",
-                        end="", flush=True,
+                        end="",
+                        flush=True,
                     )
         if total:
             print()  # newline after progress
@@ -161,6 +167,7 @@ def _download_with_progress(url: str, dest: Path, timeout: int = 120) -> None:
 # ====================================================================
 # Load & Validate
 # ====================================================================
+
 
 def load_sku110k_annotations(
     csv_path: Optional[str] = None,
@@ -255,6 +262,7 @@ def _validate_boxes(df: pd.DataFrame) -> None:
 # Filter
 # ====================================================================
 
+
 def filter_by_object_count(
     df: pd.DataFrame,
     min_objects: int = MIN_OBJECTS,
@@ -276,9 +284,9 @@ def filter_by_object_count(
         Filtered dataframe (only rows belonging to qualifying images).
     """
     counts = df.groupby("image_name").size().reset_index(name="count")
-    valid = counts[
-        (counts["count"] >= min_objects) & (counts["count"] <= max_objects)
-    ]["image_name"]
+    valid = counts[(counts["count"] >= min_objects) & (counts["count"] <= max_objects)][
+        "image_name"
+    ]
     filtered = df[df["image_name"].isin(valid)].copy()
 
     n_dropped = df["image_name"].nunique() - len(valid)
@@ -293,6 +301,7 @@ def filter_by_object_count(
 # ====================================================================
 # Train / Val / Test Split
 # ====================================================================
+
 
 def create_splits(
     df: pd.DataFrame,
@@ -320,9 +329,9 @@ def create_splits(
     dict
         {"train": df, "val": df, "test": df}
     """
-    assert 0 < train_ratio + val_ratio < 1.0, (
-        f"train_ratio + val_ratio must be < 1.0, got {train_ratio + val_ratio}"
-    )
+    assert (
+        0 < train_ratio + val_ratio < 1.0
+    ), f"train_ratio + val_ratio must be < 1.0, got {train_ratio + val_ratio}"
 
     rng = np.random.RandomState(seed)
     images = df["image_name"].unique()
@@ -353,6 +362,7 @@ def create_splits(
 # ====================================================================
 # Save Splits
 # ====================================================================
+
 
 def save_splits(
     splits: Dict[str, pd.DataFrame],
@@ -386,11 +396,13 @@ def save_splits(
         entries = []
         for img_name, group in split_df.groupby("image_name"):
             annotations = group[["x1", "y1", "x2", "y2"]].values.tolist()
-            entries.append({
-                "image": img_name,
-                "num_objects": len(group),
-                "annotations": annotations,
-            })
+            entries.append(
+                {
+                    "image": img_name,
+                    "num_objects": len(group),
+                    "annotations": annotations,
+                }
+            )
 
         out_path = output_dir / f"{split_name}_split.json"
         with open(out_path, "w") as f:
@@ -404,6 +416,7 @@ def save_splits(
 # ====================================================================
 # Summary Statistics
 # ====================================================================
+
 
 def print_summary_statistics(
     splits: Dict[str, pd.DataFrame],
@@ -440,7 +453,7 @@ def print_summary_statistics(
         print(f"\n  [{name.upper()}]")
         print(f"    Images:        {len(counts):>8,}")
         print(f"    Annotations:   {len(split_df):>8,}")
-        print(f"    ── Objects per image ──")
+        print("    ── Objects per image ──")
         print(f"       Min:        {counts.min():>8}")
         print(f"       Max:        {counts.max():>8}")
         print(f"       Mean:       {counts.mean():>8.1f}")
@@ -449,10 +462,10 @@ def print_summary_statistics(
 
     # Overall totals
     overall = pd.concat(all_counts)
-    print(f"\n  [OVERALL]")
+    print("\n  [OVERALL]")
     print(f"    Images:        {len(overall):>8,}")
     print(f"    Annotations:   {sum(len(s) for s in splits.values()):>8,}")
-    print(f"    ── Objects per image ──")
+    print("    ── Objects per image ──")
     print(f"       Min:        {overall.min():>8}")
     print(f"       Max:        {overall.max():>8}")
     print(f"       Mean:       {overall.mean():>8.1f}")
@@ -465,12 +478,9 @@ def print_summary_statistics(
         all_images.update(split_df["image_name"].unique())
 
     if image_dir.exists():
-        available = {
-            img for img in all_images
-            if (image_dir / img).exists()
-        }
+        available = {img for img in all_images if (image_dir / img).exists()}
         missing = all_images - available
-        print(f"\n  [IMAGE AVAILABILITY]")
+        print("\n  [IMAGE AVAILABILITY]")
         print(f"    Directory:     {image_dir}")
         print(f"    Available:     {len(available):>8,} / {len(all_images):,}")
         print(f"    Missing:       {len(missing):>8,}")
@@ -485,13 +495,13 @@ def print_summary_statistics(
             print(f"      • … and {len(missing) - 3:,} more")
         if missing:
             print(
-                f"\n    ℹ  Script works with annotations only — "
-                f"missing images are handled gracefully."
+                "\n    ℹ  Script works with annotations only — "
+                "missing images are handled gracefully."
             )
     else:
-        print(f"\n  [IMAGE AVAILABILITY]")
+        print("\n  [IMAGE AVAILABILITY]")
         print(f"    Directory {image_dir} does not exist yet.")
-        print(f"    ℹ  Script works with annotations only — no images required.")
+        print("    ℹ  Script works with annotations only — no images required.")
 
     print("\n" + "=" * 70)
 
@@ -499,6 +509,7 @@ def print_summary_statistics(
 # ====================================================================
 # Synthetic Dataset Loader
 # ====================================================================
+
 
 def load_synthetic_annotations(
     annotations_path: Optional[str] = None,
@@ -537,6 +548,7 @@ def load_synthetic_annotations(
 # ====================================================================
 # Image Loader
 # ====================================================================
+
 
 def load_image(image_path: str) -> np.ndarray:
     """
@@ -580,9 +592,7 @@ if __name__ == "__main__":
     # ---- Synthetic ----
     try:
         synth = load_synthetic_annotations()
-        print(
-            f"Synthetic dataset: {len(synth.get('images', []))} images loaded."
-        )
+        print(f"Synthetic dataset: {len(synth.get('images', []))} images loaded.")
     except FileNotFoundError as e:
         print(f"\n⚠️  {e}")
 

@@ -17,11 +17,10 @@ Usage:
 
 import argparse
 import json
-import sys
 import time
 import traceback
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 import cv2
 import numpy as np
@@ -35,6 +34,7 @@ SYNTHETIC_DIR = PROJECT_ROOT / "data" / "synthetic"
 # ====================================================================
 # EdgeInferencePipeline
 # ====================================================================
+
 
 class EdgeInferencePipeline:
     """
@@ -192,7 +192,9 @@ class EdgeInferencePipeline:
         try:
             import onnxruntime as ort
         except ImportError:
-            print("[edge] ⚠ onnxruntime not installed. Install with: pip install onnxruntime")
+            print(
+                "[edge] ⚠ onnxruntime not installed. Install with: pip install onnxruntime"
+            )
             raise
 
         if not self.model_path.exists():
@@ -208,9 +210,7 @@ class EdgeInferencePipeline:
         self.session = ort.InferenceSession(str(self.model_path), providers=providers)
         print(f"[edge] ✓ Loaded ONNX session: {self.model_path.name}")
 
-    def run_inference(
-        self, image
-    ) -> Tuple[np.ndarray, np.ndarray]:
+    def run_inference(self, image) -> Tuple[np.ndarray, np.ndarray]:
         """
         Run edge inference: preprocess → ONNX → Soft-NMS.
 
@@ -235,8 +235,8 @@ class EdgeInferencePipeline:
 
         # Parse outputs (torchvision detection model format)
         if len(outputs) >= 3:
-            raw_boxes = outputs[0]   # (N, 4)
-            raw_labels = outputs[1]  # (N,)
+            raw_boxes = outputs[0]  # (N, 4)
+#             raw_labels = outputs[1]  # (N,)
             raw_scores = outputs[2]  # (N,)
         elif len(outputs) == 2:
             raw_boxes = outputs[0]
@@ -256,9 +256,11 @@ class EdgeInferencePipeline:
 
         # Apply Soft-NMS
         from src.models.soft_nms import soft_nms_np
+
         method = self._method_map.get(self.nms_method, "gaussian")
         keep, new_scores = soft_nms_np(
-            raw_boxes, raw_scores,
+            raw_boxes,
+            raw_scores,
             sigma=self.sigma,
             score_threshold=self.score_threshold,
             method=method,
@@ -317,10 +319,14 @@ class EdgeInferencePipeline:
                 "max": float(top_scores.max()) if len(top_scores) else 0.0,
                 "mean": float(top_scores.mean()) if len(top_scores) else 0.0,
             },
-            "payload_size_bytes": len(json.dumps({
-                "r": top_boxes.round(1).tolist(),
-                "s": top_scores.round(4).tolist(),
-            })),
+            "payload_size_bytes": len(
+                json.dumps(
+                    {
+                        "r": top_boxes.round(1).tolist(),
+                        "s": top_scores.round(4).tolist(),
+                    }
+                )
+            ),
         }
 
     # ----------------------------------------------------------------
@@ -328,7 +334,9 @@ class EdgeInferencePipeline:
     # ----------------------------------------------------------------
 
     def benchmark(
-        self, image, n_runs: int = 50,
+        self,
+        image,
+        n_runs: int = 50,
     ) -> Dict[str, Any]:
         """
         Benchmark edge inference latency.
@@ -373,9 +381,7 @@ class EdgeInferencePipeline:
             "nms_method": self.nms_method,
         }
 
-    def _benchmark_fallback(
-        self, image, n_runs: int
-    ) -> Dict[str, Any]:
+    def _benchmark_fallback(self, image, n_runs: int) -> Dict[str, Any]:
         """Fallback benchmark using preprocess-only (no ONNX model)."""
         times = []
         for _ in range(n_runs):
@@ -406,6 +412,7 @@ class EdgeInferencePipeline:
 # ====================================================================
 # ServerRefinementPipeline
 # ====================================================================
+
 
 class ServerRefinementPipeline:
     """
@@ -442,6 +449,7 @@ class ServerRefinementPipeline:
     def _load_detector(self):
         """Lazy-load the full server detector."""
         from src.models.detector import DenseObjectDetector
+
         self._detector = DenseObjectDetector(
             backbone=self.model_backbone,
             nms_method=self.nms_method,
@@ -481,8 +489,12 @@ class ServerRefinementPipeline:
                 "refined_count": int(len(boxes)),
                 "edge_count": edge_count,
                 "count_delta": int(len(boxes)) - edge_count,
-                "refined_boxes": boxes.tolist() if hasattr(boxes, 'tolist') else list(boxes),
-                "refined_scores": scores.tolist() if hasattr(scores, 'tolist') else list(scores),
+                "refined_boxes": (
+                    boxes.tolist() if hasattr(boxes, "tolist") else list(boxes)
+                ),
+                "refined_scores": (
+                    scores.tolist() if hasattr(scores, "tolist") else list(scores)
+                ),
                 "method": f"server_{self.model_backbone}",
             }
 
@@ -507,19 +519,24 @@ class ServerRefinementPipeline:
 # CLI / Demo
 # ====================================================================
 
+
 def main():
     parser = argparse.ArgumentParser(
         description="Edge inference pipeline demo",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-    parser.add_argument("--export-only", action="store_true",
-                        help="Only export ONNX model")
-    parser.add_argument("--benchmark", action="store_true",
-                        help="Run benchmark")
-    parser.add_argument("--image", type=str, default=None,
-                        help="Test image path")
-    parser.add_argument("--input-size", type=int, nargs=2, default=[320, 320],
-                        help="Model input size (H W)")
+    parser.add_argument(
+        "--export-only", action="store_true", help="Only export ONNX model"
+    )
+    parser.add_argument("--benchmark", action="store_true", help="Run benchmark")
+    parser.add_argument("--image", type=str, default=None, help="Test image path")
+    parser.add_argument(
+        "--input-size",
+        type=int,
+        nargs=2,
+        default=[320, 320],
+        help="Model input size (H W)",
+    )
     parser.add_argument("--n-runs", type=int, default=50)
     args = parser.parse_args()
 
@@ -542,8 +559,8 @@ def main():
     if args.export_only or not onnx_path.exists():
         print("\n=== ONNX Export ===")
         try:
-            import torch
             import torchvision
+
             model = torchvision.models.detection.fasterrcnn_mobilenet_v3_large_fpn(
                 weights=torchvision.models.detection.FasterRCNN_MobileNet_V3_Large_FPN_Weights.DEFAULT,
             )
@@ -576,7 +593,7 @@ def main():
 
             # Compress
             payload = edge.compress_results(boxes, scores)
-            print(f"\nCompressed payload:")
+            print("\nCompressed payload:")
             print(f"  Object count: {payload['object_count']}")
             print(f"  Payload size: {payload['payload_size_bytes']} bytes")
             print(f"  Confidence: {payload['confidence_summary']}")

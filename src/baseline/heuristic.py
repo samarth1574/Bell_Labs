@@ -34,6 +34,7 @@ SYNTHETIC_DIR = PROJECT_ROOT / "data" / "synthetic"
 # HeuristicDetector
 # ====================================================================
 
+
 class HeuristicDetector:
     """
     Blob/contour-based baseline detector.
@@ -155,7 +156,8 @@ class HeuristicDetector:
 
         # 2. Adaptive thresholding (Gaussian)
         binary = cv2.adaptiveThreshold(
-            gray, 255,
+            gray,
+            255,
             cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
             cv2.THRESH_BINARY_INV,
             blockSize=self.block_size,
@@ -176,9 +178,7 @@ class HeuristicDetector:
 
         return binary
 
-    def _find_contours(
-        self, binary: np.ndarray, image: np.ndarray
-    ) -> List[np.ndarray]:
+    def _find_contours(self, binary: np.ndarray, image: np.ndarray) -> List[np.ndarray]:
         """
         Step 4–6: Find contours, filter by area, watershed-split large blobs.
         """
@@ -259,7 +259,11 @@ class HeuristicDetector:
         markers[unknown == 255] = 0
 
         # (e) Apply watershed
-        img_color = image.copy() if len(image.shape) == 3 else cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
+        img_color = (
+            image.copy()
+            if len(image.shape) == 3
+            else cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
+        )
         markers = cv2.watershed(img_color, markers)
 
         # (f) Extract sub-contours from watershed regions
@@ -314,6 +318,7 @@ class HeuristicDetector:
 # Evaluation Utilities
 # ====================================================================
 
+
 def compute_iou(box_a: Tuple, box_b: Tuple) -> float:
     """Compute IoU between two (x1, y1, x2, y2) boxes."""
     x1 = max(box_a[0], box_b[0])
@@ -363,21 +368,42 @@ def evaluate_detections(
 
     if n_pred == 0 and n_gt == 0:
         return {
-            "count_error": 0, "precision": 1.0, "recall": 1.0, "f1": 1.0,
-            "mean_iou": 1.0, "num_predicted": 0, "num_gt": 0,
-            "tp": 0, "fp": 0, "fn": 0,
+            "count_error": 0,
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "mean_iou": 1.0,
+            "num_predicted": 0,
+            "num_gt": 0,
+            "tp": 0,
+            "fp": 0,
+            "fn": 0,
         }
     if n_pred == 0:
         return {
-            "count_error": n_gt, "precision": 0.0, "recall": 0.0, "f1": 0.0,
-            "mean_iou": 0.0, "num_predicted": 0, "num_gt": n_gt,
-            "tp": 0, "fp": 0, "fn": n_gt,
+            "count_error": n_gt,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "mean_iou": 0.0,
+            "num_predicted": 0,
+            "num_gt": n_gt,
+            "tp": 0,
+            "fp": 0,
+            "fn": n_gt,
         }
     if n_gt == 0:
         return {
-            "count_error": n_pred, "precision": 0.0, "recall": 0.0, "f1": 0.0,
-            "mean_iou": 0.0, "num_predicted": n_pred, "num_gt": 0,
-            "tp": 0, "fp": n_pred, "fn": 0,
+            "count_error": n_pred,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "mean_iou": 0.0,
+            "num_predicted": n_pred,
+            "num_gt": 0,
+            "tp": 0,
+            "fp": n_pred,
+            "fn": 0,
         }
 
     # Build IoU cost matrix (negate for minimisation)
@@ -401,7 +427,11 @@ def evaluate_detections(
     fn = n_gt - tp
     precision = tp / (tp + fp) if (tp + fp) > 0 else 0.0
     recall = tp / (tp + fn) if (tp + fn) > 0 else 0.0
-    f1 = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0.0
+    f1 = (
+        2 * precision * recall / (precision + recall)
+        if (precision + recall) > 0
+        else 0.0
+    )
     mean_iou = float(np.mean(matched_ious)) if matched_ious else 0.0
 
     return {
@@ -431,7 +461,9 @@ def evaluate_on_synthetic(
     # Load synthetic annotations
     ann_path = SYNTHETIC_DIR / "annotations.json"
     if not ann_path.exists():
-        print("[heuristic] ⚠ Synthetic data not found. Run: python -m src.synthetic_generator")
+        print(
+            "[heuristic] ⚠ Synthetic data not found. Run: python -m src.synthetic_generator"
+        )
         return []
 
     with open(ann_path) as f:
@@ -482,19 +514,27 @@ if __name__ == "__main__":
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     parser.add_argument(
-        "--image", type=str, default=None,
+        "--image",
+        type=str,
+        default=None,
         help="Path to a single image to run detection on",
     )
     parser.add_argument(
-        "--num_samples", type=int, default=10,
+        "--num_samples",
+        type=int,
+        default=10,
         help="Number of synthetic samples to evaluate on",
     )
     parser.add_argument(
-        "--block_size", type=int, default=11,
+        "--block_size",
+        type=int,
+        default=11,
         help="Adaptive threshold block size",
     )
     parser.add_argument(
-        "--min_area", type=int, default=100,
+        "--min_area",
+        type=int,
+        default=100,
         help="Minimum contour area",
     )
     args = parser.parse_args()
@@ -510,7 +550,7 @@ if __name__ == "__main__":
         boxes = detector.detect(args.image)
         print(f"Detected {len(boxes)} objects in {args.image}")
         for i, b in enumerate(boxes):
-            print(f"  [{i+1}] x1={b[0]}, y1={b[1]}, x2={b[2]}, y2={b[3]}")
+            print(f"  [{i + 1}] x1={b[0]}, y1={b[1]}, x2={b[2]}, y2={b[3]}")
     else:
         # Evaluate on synthetic samples
         print(f"Evaluating on {args.num_samples} synthetic images…\n")
@@ -520,8 +560,10 @@ if __name__ == "__main__":
             sys.exit(1)
 
         # Print per-image results
-        print(f"{'Image':<22} {'GT':>4} {'Pred':>5} {'CntErr':>7} "
-              f"{'Prec':>6} {'Rec':>6} {'F1':>6} {'mIoU':>6}")
+        print(
+            f"{'Image':<22} {'GT':>4} {'Pred':>5} {'CntErr':>7} "
+            f"{'Prec':>6} {'Rec':>6} {'F1':>6} {'mIoU':>6}"
+        )
         print("─" * 70)
 
         for r in results:

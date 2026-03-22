@@ -19,10 +19,8 @@ Usage:
 """
 
 import json
-import os
-import sys
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -31,7 +29,8 @@ import seaborn as sns
 from matplotlib.patches import Rectangle
 
 # ---- Local imports ----
-from src.utils.visualization import setup_style, save_figure, COLORS, FIGURE_DIR
+from src.utils.visualization import (COLORS, FIGURE_DIR, save_figure,
+                                     setup_style)
 
 # ---- Paths ----
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -48,6 +47,7 @@ setup_style()
 # Data Loading Helpers
 # ====================================================================
 
+
 def _load_split_json(split_name: str) -> List[Dict]:
     """Load a single split JSON file from data/processed/."""
     path = PROCESSED_DIR / f"{split_name}_split.json"
@@ -59,10 +59,7 @@ def _load_split_json(split_name: str) -> List[Dict]:
 
 def _load_all_splits() -> Dict[str, List[Dict]]:
     """Load train/val/test splits; returns empty dict entries for missing."""
-    return {
-        name: _load_split_json(name)
-        for name in ["train", "val", "test"]
-    }
+    return {name: _load_split_json(name) for name in ["train", "val", "test"]}
 
 
 def _load_synthetic_metadata() -> Optional[pd.DataFrame]:
@@ -94,14 +91,19 @@ def _annotations_to_dataframe(entries: List[Dict]) -> pd.DataFrame:
         n = entry["num_objects"]
         for ann in entry["annotations"]:
             x1, y1, x2, y2 = ann
-            rows.append({
-                "image_name": img,
-                "num_objects": n,
-                "x1": x1, "y1": y1, "x2": x2, "y2": y2,
-                "box_w": x2 - x1,
-                "box_h": y2 - y1,
-                "area": (x2 - x1) * (y2 - y1),
-            })
+            rows.append(
+                {
+                    "image_name": img,
+                    "num_objects": n,
+                    "x1": x1,
+                    "y1": y1,
+                    "x2": x2,
+                    "y2": y2,
+                    "box_w": x2 - x1,
+                    "box_h": y2 - y1,
+                    "area": (x2 - x1) * (y2 - y1),
+                }
+            )
     return pd.DataFrame(rows)
 
 
@@ -112,27 +114,34 @@ def _coco_to_dataframe(coco: Dict) -> pd.DataFrame:
 
     # Count objects per image
     from collections import Counter
+
     obj_counts = Counter(a["image_id"] for a in coco["annotations"])
 
     rows = []
     for ann in coco["annotations"]:
         x, y, w, h = ann["bbox"]
-        rows.append({
-            "image_name": img_map[ann["image_id"]],
-            "image_id": ann["image_id"],
-            "num_objects": obj_counts[ann["image_id"]],
-            "category": cat_map.get(ann["category_id"], "unknown"),
-            "x1": x, "y1": y, "x2": x + w, "y2": y + h,
-            "box_w": w,
-            "box_h": h,
-            "area": ann.get("area", w * h),
-        })
+        rows.append(
+            {
+                "image_name": img_map[ann["image_id"]],
+                "image_id": ann["image_id"],
+                "num_objects": obj_counts[ann["image_id"]],
+                "category": cat_map.get(ann["category_id"], "unknown"),
+                "x1": x,
+                "y1": y,
+                "x2": x + w,
+                "y2": y + h,
+                "box_w": w,
+                "box_h": h,
+                "area": ann.get("area", w * h),
+            }
+        )
     return pd.DataFrame(rows)
 
 
 # ====================================================================
 # IoU Computation
 # ====================================================================
+
 
 def compute_iou(box_a: np.ndarray, box_b: np.ndarray) -> float:
     """Compute IoU between two boxes [x1, y1, x2, y2]."""
@@ -186,6 +195,7 @@ def nearest_neighbor_iou(boxes: np.ndarray) -> float:
 # Plot 1: Object Count Distribution
 # ====================================================================
 
+
 def plot_object_count_distribution(
     df: pd.DataFrame,
     dataset: str = "sku110k",
@@ -219,17 +229,38 @@ def plot_object_count_distribution(
 
     # Histogram with bins of width 5
     bins = np.arange(0, counts.max() + 6, 5)
-    ax.hist(counts, bins=bins, color=COLORS["primary"], alpha=0.75,
-            edgecolor="white", linewidth=0.8, label="Images")
+    ax.hist(
+        counts,
+        bins=bins,
+        color=COLORS["primary"],
+        alpha=0.75,
+        edgecolor="white",
+        linewidth=0.8,
+        label="Images",
+    )
 
     # Mean & median lines
-    ax.axvline(mean_val, color=COLORS["danger"], linestyle="--", linewidth=2,
-               label=f"Mean = {mean_val:.1f}")
-    ax.axvline(median_val, color=COLORS["warning"], linestyle="-.", linewidth=2,
-               label=f"Median = {median_val:.1f}")
+    ax.axvline(
+        mean_val,
+        color=COLORS["danger"],
+        linestyle="--",
+        linewidth=2,
+        label=f"Mean = {mean_val:.1f}",
+    )
+    ax.axvline(
+        median_val,
+        color=COLORS["warning"],
+        linestyle="-.",
+        linewidth=2,
+        label=f"Median = {median_val:.1f}",
+    )
 
-    dataset_label = "SKU-110K (1–50 subset)" if dataset == "sku110k" else "Synthetic Shapes"
-    ax.set_title(f"Object Count Distribution — {dataset_label}", fontsize=14, fontweight="bold")
+    dataset_label = (
+        "SKU-110K (1–50 subset)" if dataset == "sku110k" else "Synthetic Shapes"
+    )
+    ax.set_title(
+        f"Object Count Distribution — {dataset_label}", fontsize=14, fontweight="bold"
+    )
     ax.set_xlabel("Number of Objects per Image")
     ax.set_ylabel("Number of Images")
     ax.legend(fontsize=11, framealpha=0.9)
@@ -246,6 +277,7 @@ def plot_object_count_distribution(
 # ====================================================================
 # Plot 2: Object Size Distribution
 # ====================================================================
+
 
 def plot_object_size_distribution(
     df: pd.DataFrame,
@@ -269,28 +301,54 @@ def plot_object_size_distribution(
 
     # ---- Box area (log scale) ----
     log_areas = np.log10(areas.clip(lower=1))
-    ax1.hist(log_areas, bins=50, color=COLORS["primary"], alpha=0.75,
-             edgecolor="white", linewidth=0.5)
-    ax1.axvline(np.log10(areas.median()), color=COLORS["danger"], ls="--", lw=2,
-                label=f"Median = {areas.median():.0f} px²")
+    ax1.hist(
+        log_areas,
+        bins=50,
+        color=COLORS["primary"],
+        alpha=0.75,
+        edgecolor="white",
+        linewidth=0.5,
+    )
+    ax1.axvline(
+        np.log10(areas.median()),
+        color=COLORS["danger"],
+        ls="--",
+        lw=2,
+        label=f"Median = {areas.median():.0f} px²",
+    )
     ax1.set_xlabel("Bounding Box Area (log₁₀ px²)")
     ax1.set_ylabel("Count")
     ax1.set_title("Box Area Distribution (Log Scale)", fontweight="bold")
     ax1.legend(fontsize=10)
 
     # ---- Aspect ratio ----
-    ax2.hist(aspect, bins=50, color=COLORS["secondary"], alpha=0.75,
-             edgecolor="white", linewidth=0.5)
-    ax2.axvline(aspect.median(), color=COLORS["danger"], ls="--", lw=2,
-                label=f"Median = {aspect.median():.2f}")
+    ax2.hist(
+        aspect,
+        bins=50,
+        color=COLORS["secondary"],
+        alpha=0.75,
+        edgecolor="white",
+        linewidth=0.5,
+    )
+    ax2.axvline(
+        aspect.median(),
+        color=COLORS["danger"],
+        ls="--",
+        lw=2,
+        label=f"Median = {aspect.median():.2f}",
+    )
     ax2.set_xlabel("Aspect Ratio (width / height)")
     ax2.set_ylabel("Count")
     ax2.set_title("Aspect Ratio Distribution", fontweight="bold")
     ax2.legend(fontsize=10)
 
     dataset_label = "SKU-110K" if dataset == "sku110k" else "Synthetic"
-    fig.suptitle(f"Object Size Distribution — {dataset_label}",
-                 fontsize=15, fontweight="bold", y=1.02)
+    fig.suptitle(
+        f"Object Size Distribution — {dataset_label}",
+        fontsize=15,
+        fontweight="bold",
+        y=1.02,
+    )
     sns.despine()
     fig.tight_layout()
 
@@ -302,6 +360,7 @@ def plot_object_size_distribution(
 # ====================================================================
 # Plot 3: Occlusion Analysis
 # ====================================================================
+
 
 def plot_occlusion_analysis(
     df: pd.DataFrame,
@@ -332,9 +391,14 @@ def plot_occlusion_analysis(
 
     fig, ax = plt.subplots(figsize=(10, 6))
     scatter = ax.scatter(
-        res_df["num_objects"], res_df["nn_iou"],
-        c=res_df["nn_iou"], cmap="YlOrRd", alpha=0.6,
-        s=30, edgecolor="gray", linewidth=0.3,
+        res_df["num_objects"],
+        res_df["nn_iou"],
+        c=res_df["nn_iou"],
+        cmap="YlOrRd",
+        alpha=0.6,
+        s=30,
+        edgecolor="gray",
+        linewidth=0.3,
     )
     plt.colorbar(scatter, ax=ax, label="Avg NN IoU", shrink=0.8)
 
@@ -342,12 +406,22 @@ def plot_occlusion_analysis(
     if len(res_df) > 10:
         z = np.polyfit(res_df["num_objects"], res_df["nn_iou"], 2)
         p = np.poly1d(z)
-        x_line = np.linspace(res_df["num_objects"].min(), res_df["num_objects"].max(), 100)
-        ax.plot(x_line, p(x_line), color=COLORS["danger"], linewidth=2,
-                linestyle="--", label="Quadratic trend")
+        x_line = np.linspace(
+            res_df["num_objects"].min(), res_df["num_objects"].max(), 100
+        )
+        ax.plot(
+            x_line,
+            p(x_line),
+            color=COLORS["danger"],
+            linewidth=2,
+            linestyle="--",
+            label="Quadratic trend",
+        )
 
     dataset_label = "SKU-110K" if dataset == "sku110k" else "Synthetic"
-    ax.set_title(f"Occlusion Analysis — {dataset_label}", fontsize=14, fontweight="bold")
+    ax.set_title(
+        f"Occlusion Analysis — {dataset_label}", fontsize=14, fontweight="bold"
+    )
     ax.set_xlabel("Number of Objects per Image")
     ax.set_ylabel("Average Nearest-Neighbor IoU")
     ax.legend(fontsize=10)
@@ -362,6 +436,7 @@ def plot_occlusion_analysis(
 # ====================================================================
 # Plot 4: Sample Visualizations (Easy vs Hard)
 # ====================================================================
+
 
 def plot_easy_vs_hard_samples(
     df: pd.DataFrame,
@@ -392,10 +467,14 @@ def plot_easy_vs_hard_samples(
         n = len(boxes)
         nn_iou = nearest_neighbor_iou(boxes)
         score = n * 0.5 + nn_iou * 50  # weighted difficulty score
-        image_scores.append({
-            "image": img_name, "score": score,
-            "n_objects": n, "nn_iou": nn_iou,
-        })
+        image_scores.append(
+            {
+                "image": img_name,
+                "score": score,
+                "n_objects": n,
+                "nn_iou": nn_iou,
+            }
+        )
 
     score_df = pd.DataFrame(image_scores).sort_values("score")
     easy_imgs = score_df.head(3)["image"].tolist()
@@ -405,22 +484,25 @@ def plot_easy_vs_hard_samples(
 
     for col, img_name in enumerate(easy_imgs):
         _draw_image_with_boxes(
-            axes[0, col], df, img_name, image_dir,
-            title=f"Easy #{col+1}"
+            axes[0, col], df, img_name, image_dir, title=f"Easy #{col + 1}"
         )
 
     for col, img_name in enumerate(hard_imgs):
         _draw_image_with_boxes(
-            axes[1, col], df, img_name, image_dir,
-            title=f"Hard #{col+1}"
+            axes[1, col], df, img_name, image_dir, title=f"Hard #{col + 1}"
         )
 
-    axes[0, 0].set_ylabel("EASY\n(few objects, low overlap)", fontsize=12, fontweight="bold")
-    axes[1, 0].set_ylabel("HARD\n(many objects, high overlap)", fontsize=12, fontweight="bold")
+    axes[0, 0].set_ylabel(
+        "EASY\n(few objects, low overlap)", fontsize=12, fontweight="bold"
+    )
+    axes[1, 0].set_ylabel(
+        "HARD\n(many objects, high overlap)", fontsize=12, fontweight="bold"
+    )
 
     dataset_label = "SKU-110K" if dataset == "sku110k" else "Synthetic"
-    fig.suptitle(f"Sample Visualizations — {dataset_label}",
-                 fontsize=16, fontweight="bold")
+    fig.suptitle(
+        f"Sample Visualizations — {dataset_label}", fontsize=16, fontweight="bold"
+    )
     fig.tight_layout(rect=[0, 0, 1, 0.96])
 
     prefix = "synth_" if dataset == "synthetic" else ""
@@ -445,6 +527,7 @@ def _draw_image_with_boxes(
     img_path = image_dir / image_name
     if img_path.exists():
         import cv2
+
         img = cv2.imread(str(img_path))
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB) if img is not None else None
     else:
@@ -466,9 +549,14 @@ def _draw_image_with_boxes(
     cmap = plt.cm.hsv
     for i, (x1, y1, x2, y2) in enumerate(boxes):
         color = cmap(i / max(n, 1))
-        rect = Rectangle((x1, y1), x2 - x1, y2 - y1,
-                          linewidth=1.5, edgecolor=color,
-                          facecolor=(*color[:3], 0.15))
+        rect = Rectangle(
+            (x1, y1),
+            x2 - x1,
+            y2 - y1,
+            linewidth=1.5,
+            edgecolor=color,
+            facecolor=(*color[:3], 0.15),
+        )
         ax.add_patch(rect)
 
     ax.set_title(f"{title}\nn={n}, NN-IoU={nn_iou:.3f}", fontsize=10)
@@ -478,6 +566,7 @@ def _draw_image_with_boxes(
 # ====================================================================
 # Plot 5: Summary Statistics Table
 # ====================================================================
+
 
 def compute_summary_statistics(
     df: pd.DataFrame,
@@ -521,9 +610,14 @@ def compute_summary_statistics(
 
     # Save LaTeX snippet
     latex_path = output_dir / f"{prefix}summary_statistics.tex"
-    latex_str = summary.to_latex(index=False, float_format="%.2f", caption=(
-        f"Summary statistics for {'Synthetic' if dataset == 'synthetic' else 'SKU-110K'} dataset."
-    ), label=f"tab:{prefix}summary")
+    latex_str = summary.to_latex(
+        index=False,
+        float_format="%.2f",
+        caption=(
+            f"Summary statistics for {'Synthetic' if dataset == 'synthetic' else 'SKU-110K'} dataset."
+        ),
+        label=f"tab:{prefix}summary",
+    )
     with open(latex_path, "w") as f:
         f.write(latex_str)
     print(f"[eda] Saved summary LaTeX → {latex_path}")
@@ -562,6 +656,7 @@ def _compute_split_row(split_name: str, df: pd.DataFrame) -> Dict[str, Any]:
 # Top-Level Runner
 # ====================================================================
 
+
 def run_eda(dataset: str = "sku110k") -> None:
     """
     Run all EDA analyses for the specified dataset.
@@ -587,7 +682,9 @@ def run_eda(dataset: str = "sku110k") -> None:
             return
 
         df = _annotations_to_dataframe(all_entries)
-        print(f"[eda] Loaded {len(df):,} annotations across {df['image_name'].nunique():,} images\n")
+        print(
+            f"[eda] Loaded {len(df):,} annotations across {df['image_name'].nunique():,} images\n"
+        )
 
     elif dataset == "synthetic":
         coco = _load_synthetic_annotations()
@@ -598,7 +695,9 @@ def run_eda(dataset: str = "sku110k") -> None:
 
         df = _coco_to_dataframe(coco)
         splits = None
-        print(f"[eda] Loaded {len(df):,} annotations across {df['image_name'].nunique():,} images\n")
+        print(
+            f"[eda] Loaded {len(df):,} annotations across {df['image_name'].nunique():,} images\n"
+        )
 
     else:
         raise ValueError(f"Unknown dataset: '{dataset}'. Use 'sku110k' or 'synthetic'.")
@@ -642,7 +741,9 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Run EDA analyses")
     parser.add_argument(
-        "--dataset", type=str, default="all",
+        "--dataset",
+        type=str,
+        default="all",
         choices=["sku110k", "synthetic", "all"],
         help="Which dataset to analyze (default: all)",
     )

@@ -14,7 +14,6 @@ All plots use a consistent style:
   - Seaborn 'whitegrid' style
 """
 
-import os
 from pathlib import Path
 from typing import List, Optional, Tuple
 
@@ -54,18 +53,20 @@ METHOD_COLORS = [
 def setup_style():
     """Apply consistent matplotlib style."""
     sns.set_style("whitegrid")
-    plt.rcParams.update({
-        "font.size": 12,
-        "axes.titlesize": 14,
-        "axes.labelsize": 12,
-        "xtick.labelsize": 10,
-        "ytick.labelsize": 10,
-        "legend.fontsize": 10,
-        "figure.figsize": (8, 5),
-        "figure.dpi": 100,
-        "savefig.dpi": 300,
-        "savefig.bbox": "tight",
-    })
+    plt.rcParams.update(
+        {
+            "font.size": 12,
+            "axes.titlesize": 14,
+            "axes.labelsize": 12,
+            "xtick.labelsize": 10,
+            "ytick.labelsize": 10,
+            "legend.fontsize": 10,
+            "figure.figsize": (8, 5),
+            "figure.dpi": 100,
+            "savefig.dpi": 300,
+            "savefig.bbox": "tight",
+        }
+    )
 
 
 def draw_boxes(
@@ -101,8 +102,13 @@ def draw_boxes(
         cv2.rectangle(img, (int(x1), int(y1)), (int(x2), int(y2)), color, thickness)
         if labels and i < len(labels):
             cv2.putText(
-                img, labels[i], (int(x1), int(y1) - 5),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1,
+                img,
+                labels[i],
+                (int(x1), int(y1) - 5),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.5,
+                color,
+                1,
             )
     return img
 

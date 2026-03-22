@@ -26,7 +26,6 @@ import argparse
 import csv
 import json
 import math
-import os
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -65,6 +64,7 @@ SHAPE_TYPES = ["circle", "rectangle", "ellipse"]
 # ====================================================================
 # Shape Drawing
 # ====================================================================
+
 
 def _random_color(rng: np.random.RandomState) -> Tuple[int, int, int]:
     """Generate a vivid random BGR color (avoids near-white)."""
@@ -131,6 +131,7 @@ def _draw_shape_on_image(
 # Placement Engine (Occlusion Control)
 # ====================================================================
 
+
 def _place_objects(
     num_objects: int,
     img_size: int,
@@ -170,20 +171,27 @@ def _place_objects(
         elif target_occlusion > 0.01 and objects:
             # Overlap mode: bias towards existing objects
             cx, cy = _find_overlapping_position(
-                objects, img_size, size, target_occlusion,
-                valid_min, valid_max, rng,
+                objects,
+                img_size,
+                size,
+                target_occlusion,
+                valid_min,
+                valid_max,
+                rng,
             )
         else:
             cx = rng.randint(valid_min, valid_max)
             cy = rng.randint(valid_min, valid_max)
 
-        objects.append({
-            "shape_type": shape_type,
-            "cx": int(cx),
-            "cy": int(cy),
-            "size": int(size),
-            "color": color,
-        })
+        objects.append(
+            {
+                "shape_type": shape_type,
+                "cx": int(cx),
+                "cy": int(cy),
+                "size": int(size),
+                "color": color,
+            }
+        )
 
     return objects
 
@@ -198,7 +206,9 @@ def _find_non_overlapping_position(
     max_tries: int = 50,
 ) -> Tuple[int, int]:
     """Try to place an object without overlapping existing ones."""
-    best_cx, best_cy = rng.randint(valid_min, valid_max), rng.randint(valid_min, valid_max)
+    best_cx, best_cy = rng.randint(valid_min, valid_max), rng.randint(
+        valid_min, valid_max
+    )
     best_min_dist = 0
 
     for _ in range(max_tries):
@@ -258,6 +268,7 @@ def _find_overlapping_position(
 # ====================================================================
 # Annotation Helpers (COCO Format)
 # ====================================================================
+
 
 def _mask_to_bbox(mask: np.ndarray) -> Optional[List[float]]:
     """Extract [x, y, width, height] bounding box from a binary mask."""
@@ -330,6 +341,7 @@ def _compute_pairwise_occlusion(masks: List[np.ndarray]) -> float:
 # ====================================================================
 # Main Generation Loop
 # ====================================================================
+
 
 def generate_dataset(
     num_images: int = DEFAULT_NUM_IMAGES,
@@ -412,7 +424,7 @@ def generate_dataset(
     image_id = 1
 
     print(f"\n{'=' * 60}")
-    print(f"  Synthetic Dataset Generator")
+    print("  Synthetic Dataset Generator")
     print(f"{'=' * 60}")
     print(f"  Images:          {num_images}")
     print(f"  Image size:      {img_size}×{img_size}")
@@ -433,8 +445,12 @@ def generate_dataset(
 
             # Place objects
             obj_params = _place_objects(
-                num_objects, img_size, min_obj_size, max_obj_size,
-                target_occ, rng,
+                num_objects,
+                img_size,
+                min_obj_size,
+                max_obj_size,
+                target_occ,
+                rng,
             )
 
             # Render image and masks
@@ -445,16 +461,25 @@ def generate_dataset(
                 # Create individual mask
                 mask = np.zeros((img_size, img_size), dtype=np.uint8)
                 mask = _draw_shape_on_mask(
-                    mask, obj["shape_type"],
-                    obj["cx"], obj["cy"], obj["size"], rng,
+                    mask,
+                    obj["shape_type"],
+                    obj["cx"],
+                    obj["cy"],
+                    obj["size"],
+                    rng,
                 )
                 instance_masks.append(mask)
 
                 # Draw on composite image
                 image = _draw_shape_on_image(
-                    image, obj["shape_type"],
-                    obj["cx"], obj["cy"], obj["size"],
-                    obj["color"], rng, mask,
+                    image,
+                    obj["shape_type"],
+                    obj["cx"],
+                    obj["cy"],
+                    obj["size"],
+                    obj["color"],
+                    rng,
+                    mask,
                 )
 
             # Compute actual occlusion
@@ -486,37 +511,43 @@ def generate_dataset(
                 area = int(np.sum(mask > 0))
                 rle = _mask_to_rle(mask)
 
-                coco["annotations"].append({
-                    "id": annotation_id,
-                    "image_id": image_id,
-                    "category_id": category_map[obj["shape_type"]],
-                    "bbox": bbox,
-                    "area": area,
-                    "segmentation": rle,
-                    "iscrowd": 0,
-                })
+                coco["annotations"].append(
+                    {
+                        "id": annotation_id,
+                        "image_id": image_id,
+                        "category_id": category_map[obj["shape_type"]],
+                        "bbox": bbox,
+                        "area": area,
+                        "segmentation": rle,
+                        "iscrowd": 0,
+                    }
+                )
                 annotation_id += 1
 
             # Save combined mask
             cv2.imwrite(str(img_mask_dir / "combined.png"), combined_mask)
 
             # COCO image entry
-            coco["images"].append({
-                "id": image_id,
-                "file_name": filename,
-                "width": img_size,
-                "height": img_size,
-            })
+            coco["images"].append(
+                {
+                    "id": image_id,
+                    "file_name": filename,
+                    "width": img_size,
+                    "height": img_size,
+                }
+            )
 
             # Metadata row
-            metadata_rows.append({
-                "image_id": image_id,
-                "file_name": filename,
-                "num_objects": num_objects,
-                "target_occlusion": target_occ,
-                "actual_avg_occlusion": round(avg_occlusion, 4),
-                "occlusion_level_label": f"{target_occ:.0%}",
-            })
+            metadata_rows.append(
+                {
+                    "image_id": image_id,
+                    "file_name": filename,
+                    "num_objects": num_objects,
+                    "target_occlusion": target_occ,
+                    "actual_avg_occlusion": round(avg_occlusion, 4),
+                    "occlusion_level_label": f"{target_occ:.0%}",
+                }
+            )
 
             image_id += 1
 
@@ -525,7 +556,9 @@ def generate_dataset(
     with open(annotations_path, "w") as f:
         json.dump(coco, f, indent=2)
     print(f"\n[synth] Saved COCO annotations → {annotations_path.name}")
-    print(f"        {len(coco['images'])} images, {len(coco['annotations'])} annotations")
+    print(
+        f"        {len(coco['images'])} images, {len(coco['annotations'])} annotations"
+    )
 
     # ---- Save metadata CSV ----
     metadata_path = output_dir / "metadata.csv"
@@ -547,7 +580,7 @@ def _print_summary(
 ) -> None:
     """Print generation summary statistics."""
     print(f"\n{'=' * 60}")
-    print(f"  GENERATION SUMMARY")
+    print("  GENERATION SUMMARY")
     print(f"{'=' * 60}")
     print(f"  Total images: {len(metadata)}")
 
@@ -559,10 +592,14 @@ def _print_summary(
         obj_counts = [r["num_objects"] for r in level_rows]
         actual_occ = [r["actual_avg_occlusion"] for r in level_rows]
         print(f"\n  [{level:.0%} target occlusion] — {n} images")
-        print(f"    Objects/image:    min={min(obj_counts)}, max={max(obj_counts)}, "
-              f"mean={np.mean(obj_counts):.1f}")
-        print(f"    Actual occlusion: min={min(actual_occ):.3f}, "
-              f"max={max(actual_occ):.3f}, mean={np.mean(actual_occ):.3f}")
+        print(
+            f"    Objects/image:    min={min(obj_counts)}, max={max(obj_counts)}, "
+            f"mean={np.mean(obj_counts):.1f}"
+        )
+        print(
+            f"    Actual occlusion: min={min(actual_occ):.3f}, "
+            f"max={max(actual_occ):.3f}, mean={np.mean(actual_occ):.3f}"
+        )
 
     print(f"\n{'=' * 60}")
 
@@ -571,46 +608,65 @@ def _print_summary(
 # CLI
 # ====================================================================
 
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Generate synthetic overlapping shapes dataset",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     parser.add_argument(
-        "--num_images", type=int, default=DEFAULT_NUM_IMAGES,
+        "--num_images",
+        type=int,
+        default=DEFAULT_NUM_IMAGES,
         help="Total number of images to generate",
     )
     parser.add_argument(
-        "--img_size", type=int, default=DEFAULT_IMG_SIZE,
+        "--img_size",
+        type=int,
+        default=DEFAULT_IMG_SIZE,
         help="Image width and height in pixels",
     )
     parser.add_argument(
-        "--min_objects", type=int, default=DEFAULT_MIN_OBJECTS,
+        "--min_objects",
+        type=int,
+        default=DEFAULT_MIN_OBJECTS,
         help="Minimum objects per image",
     )
     parser.add_argument(
-        "--max_objects", type=int, default=DEFAULT_MAX_OBJECTS,
+        "--max_objects",
+        type=int,
+        default=DEFAULT_MAX_OBJECTS,
         help="Maximum objects per image",
     )
     parser.add_argument(
-        "--min_obj_size", type=int, default=DEFAULT_MIN_OBJ_SIZE,
+        "--min_obj_size",
+        type=int,
+        default=DEFAULT_MIN_OBJ_SIZE,
         help="Minimum object size in pixels",
     )
     parser.add_argument(
-        "--max_obj_size", type=int, default=DEFAULT_MAX_OBJ_SIZE,
+        "--max_obj_size",
+        type=int,
+        default=DEFAULT_MAX_OBJ_SIZE,
         help="Maximum object size in pixels",
     )
     parser.add_argument(
-        "--occlusion", type=float, nargs="+",
+        "--occlusion",
+        type=float,
+        nargs="+",
         default=[0.0, 0.25, 0.50, 0.75],
         help="Target occlusion levels (space-separated)",
     )
     parser.add_argument(
-        "--output_dir", type=str, default=None,
+        "--output_dir",
+        type=str,
+        default=None,
         help="Output directory (default: data/synthetic/)",
     )
     parser.add_argument(
-        "--seed", type=int, default=42,
+        "--seed",
+        type=int,
+        default=42,
         help="Random seed for reproducibility",
     )
     return parser.parse_args()

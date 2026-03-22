@@ -15,17 +15,16 @@ Usage:
 """
 
 import json
-import time
 import sys
+import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import cv2
 import numpy as np
-from scipy import ndimage
 from scipy.optimize import linear_sum_assignment
-from skimage.segmentation import felzenszwalb
 from skimage.feature import peak_local_max
+from skimage.segmentation import felzenszwalb
 
 # ---- Paths ----
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -35,6 +34,7 @@ SYNTHETIC_DIR = PROJECT_ROOT / "data" / "synthetic"
 # ====================================================================
 # Base Class
 # ====================================================================
+
 
 class BaseDetector:
     """Common interface for classical CV detectors."""
@@ -99,6 +99,7 @@ class BaseDetector:
 # WatershedSegmenter
 # ====================================================================
 
+
 class WatershedSegmenter(BaseDetector):
     """
     Distance-transform-based watershed segmentation.
@@ -129,12 +130,14 @@ class WatershedSegmenter(BaseDetector):
         min_area: int = 80,
         max_area_ratio: float = 0.5,
     ):
-        super().__init__({
-            "blur_ksize": blur_ksize,
-            "min_distance": min_distance,
-            "min_area": min_area,
-            "max_area_ratio": max_area_ratio,
-        })
+        super().__init__(
+            {
+                "blur_ksize": blur_ksize,
+                "min_distance": min_distance,
+                "min_area": min_area,
+                "max_area_ratio": max_area_ratio,
+            }
+        )
         self.blur_ksize = blur_ksize
         self.min_distance = min_distance
         self.min_area = min_area
@@ -154,16 +157,22 @@ class WatershedSegmenter(BaseDetector):
             return [], []
         labels = self._segment(img)
         contours = self._labels_to_contours(labels, img.shape)
-        return self._contours_to_boxes(contours), self._contours_to_masks(contours, img.shape)
+        return self._contours_to_boxes(contours), self._contours_to_masks(
+            contours, img.shape
+        )
 
     def _segment(self, img: np.ndarray) -> np.ndarray:
         """Run the watershed pipeline, returns label image."""
         h, w = img.shape[:2]
 
         # 1. Grayscale → blur → Otsu
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY) if len(img.shape) == 3 else img.copy()
+        gray = (
+            cv2.cvtColor(img, cv2.COLOR_BGR2GRAY) if len(img.shape) == 3 else img.copy()
+        )
         blurred = cv2.GaussianBlur(gray, (self.blur_ksize, self.blur_ksize), 0)
-        _, binary = cv2.threshold(blurred, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+        _, binary = cv2.threshold(
+            blurred, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU
+        )
 
         # Morphological cleanup
         kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
@@ -191,13 +200,11 @@ class WatershedSegmenter(BaseDetector):
             markers[r, c] = i
 
         # Dilate markers slightly for watershed stability
-        markers = cv2.dilate(
-            markers.astype(np.uint8), kernel, iterations=1
-        ).astype(np.int32)
-        # Re-label after dilation
-        _, markers = cv2.connectedComponents(
-            (markers > 0).astype(np.uint8)
+        markers = cv2.dilate(markers.astype(np.uint8), kernel, iterations=1).astype(
+            np.int32
         )
+        # Re-label after dilation
+        _, markers = cv2.connectedComponents((markers > 0).astype(np.uint8))
         markers = markers + 1  # background = 1
         markers[binary == 0] = 0  # unknown stays 0... no, mark sure bg
         # Actually for watershed: 0 = unknown, positive = known regions
@@ -216,9 +223,7 @@ class WatershedSegmenter(BaseDetector):
 
         return labels
 
-    def _labels_to_contours(
-        self, labels: np.ndarray, shape: tuple
-    ) -> List[np.ndarray]:
+    def _labels_to_contours(self, labels: np.ndarray, shape: tuple) -> List[np.ndarray]:
         """Extract contours from watershed label image, filtering by area."""
         h, w = shape[:2]
         image_area = h * w
@@ -247,6 +252,7 @@ class WatershedSegmenter(BaseDetector):
 # ====================================================================
 # GraphSegmenter
 # ====================================================================
+
 
 class GraphSegmenter(BaseDetector):
     """
@@ -277,10 +283,15 @@ class GraphSegmenter(BaseDetector):
         min_area: int = 80,
         max_area_ratio: float = 0.5,
     ):
-        super().__init__({
-            "scale": scale, "sigma": sigma, "min_size": min_size,
-            "min_area": min_area, "max_area_ratio": max_area_ratio,
-        })
+        super().__init__(
+            {
+                "scale": scale,
+                "sigma": sigma,
+                "min_size": min_size,
+                "min_area": min_area,
+                "max_area_ratio": max_area_ratio,
+            }
+        )
         self.scale = scale
         self.sigma = sigma
         self.min_size = min_size
@@ -301,7 +312,9 @@ class GraphSegmenter(BaseDetector):
             return [], []
         labels = self._segment(img)
         contours = self._labels_to_contours(labels, img.shape)
-        return self._contours_to_boxes(contours), self._contours_to_masks(contours, img.shape)
+        return self._contours_to_boxes(contours), self._contours_to_masks(
+            contours, img.shape
+        )
 
     def _segment(self, img: np.ndarray) -> np.ndarray:
         """Run Felzenszwalb segmentation, returns label image."""
@@ -315,9 +328,7 @@ class GraphSegmenter(BaseDetector):
         )
         return labels
 
-    def _labels_to_contours(
-        self, labels: np.ndarray, shape: tuple
-    ) -> List[np.ndarray]:
+    def _labels_to_contours(self, labels: np.ndarray, shape: tuple) -> List[np.ndarray]:
         """Extract valid contours from segment labels."""
         h, w = shape[:2]
         image_area = h * w
@@ -349,6 +360,7 @@ class GraphSegmenter(BaseDetector):
 # ====================================================================
 # RetailPriorDetector
 # ====================================================================
+
 
 class RetailPriorDetector(BaseDetector):
     """
@@ -391,16 +403,18 @@ class RetailPriorDetector(BaseDetector):
         fallback_scale: float = 150,
         min_area: int = 80,
     ):
-        super().__init__({
-            "hough_threshold": hough_threshold,
-            "hough_min_length": hough_min_length,
-            "hough_max_gap": hough_max_gap,
-            "angle_tolerance": angle_tolerance,
-            "strip_width": strip_width,
-            "peak_prominence": peak_prominence,
-            "fallback_scale": fallback_scale,
-            "min_area": min_area,
-        })
+        super().__init__(
+            {
+                "hough_threshold": hough_threshold,
+                "hough_min_length": hough_min_length,
+                "hough_max_gap": hough_max_gap,
+                "angle_tolerance": angle_tolerance,
+                "strip_width": strip_width,
+                "peak_prominence": peak_prominence,
+                "fallback_scale": fallback_scale,
+                "min_area": min_area,
+            }
+        )
         self.hough_threshold = hough_threshold
         self.hough_min_length = hough_min_length
         self.hough_max_gap = hough_max_gap
@@ -428,7 +442,7 @@ class RetailPriorDetector(BaseDetector):
         boxes = self._detect_impl(img)
         masks = []
         h, w = img.shape[:2]
-        for (x1, y1, x2, y2) in boxes:
+        for x1, y1, x2, y2 in boxes:
             m = np.zeros((h, w), dtype=np.uint8)
             m[y1:y2, x1:x2] = 255
             masks.append(m)
@@ -526,7 +540,11 @@ class RetailPriorDetector(BaseDetector):
         if h < 5 or w < 5:
             return []
 
-        gray = cv2.cvtColor(band_img, cv2.COLOR_BGR2GRAY) if len(band_img.shape) == 3 else band_img
+        gray = (
+            cv2.cvtColor(band_img, cv2.COLOR_BGR2GRAY)
+            if len(band_img.shape) == 3
+            else band_img
+        )
 
         # Detect vertical edges → indicates product boundaries
         sobel_x = cv2.Sobel(gray, cv2.CV_64F, 1, 0, ksize=3)
@@ -542,7 +560,9 @@ class RetailPriorDetector(BaseDetector):
         if len(peaks) < 2:
             # Fallback: segment the band with graph segmenter
             band_boxes = self._graph_seg.detect(band_img)
-            return [(x1, y1 + y_offset, x2, y2 + y_offset) for x1, y1, x2, y2 in band_boxes]
+            return [
+                (x1, y1 + y_offset, x2, y2 + y_offset) for x1, y1, x2, y2 in band_boxes
+            ]
 
         # Create grid cells from peak positions
         boundaries_x = [0] + peaks.tolist() + [w]
@@ -570,6 +590,7 @@ class RetailPriorDetector(BaseDetector):
 # Evaluation Utility (re-exported from heuristic for convenience)
 # ====================================================================
 
+
 def compute_iou(box_a: Tuple, box_b: Tuple) -> float:
     """Compute IoU between two (x1, y1, x2, y2) boxes."""
     x1 = max(box_a[0], box_b[0])
@@ -593,17 +614,44 @@ def evaluate_detections(
     n_gt = len(gt_boxes)
 
     if n_pred == 0 and n_gt == 0:
-        return {"count_error": 0, "precision": 1.0, "recall": 1.0,
-                "f1": 1.0, "mean_iou": 1.0, "num_predicted": 0, "num_gt": 0,
-                "tp": 0, "fp": 0, "fn": 0}
+        return {
+            "count_error": 0,
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "mean_iou": 1.0,
+            "num_predicted": 0,
+            "num_gt": 0,
+            "tp": 0,
+            "fp": 0,
+            "fn": 0,
+        }
     if n_pred == 0:
-        return {"count_error": n_gt, "precision": 0.0, "recall": 0.0,
-                "f1": 0.0, "mean_iou": 0.0, "num_predicted": 0, "num_gt": n_gt,
-                "tp": 0, "fp": 0, "fn": n_gt}
+        return {
+            "count_error": n_gt,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "mean_iou": 0.0,
+            "num_predicted": 0,
+            "num_gt": n_gt,
+            "tp": 0,
+            "fp": 0,
+            "fn": n_gt,
+        }
     if n_gt == 0:
-        return {"count_error": n_pred, "precision": 0.0, "recall": 0.0,
-                "f1": 0.0, "mean_iou": 0.0, "num_predicted": n_pred, "num_gt": 0,
-                "tp": 0, "fp": n_pred, "fn": 0}
+        return {
+            "count_error": n_pred,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "mean_iou": 0.0,
+            "num_predicted": n_pred,
+            "num_gt": 0,
+            "tp": 0,
+            "fp": n_pred,
+            "fn": 0,
+        }
 
     cost = np.zeros((n_pred, n_gt))
     for i, pb in enumerate(pred_boxes):
@@ -633,7 +681,9 @@ def evaluate_detections(
         "mean_iou": round(float(np.mean(matched_ious)) if matched_ious else 0.0, 4),
         "num_predicted": n_pred,
         "num_gt": n_gt,
-        "tp": tp, "fp": fp, "fn": fn,
+        "tp": tp,
+        "fp": fp,
+        "fn": fn,
     }
 
 
@@ -649,8 +699,12 @@ if __name__ == "__main__":
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     parser.add_argument("--image", type=str, default=None, help="Single image path")
-    parser.add_argument("--method", type=str, default="all",
-                        choices=["watershed", "graph", "retail", "all"])
+    parser.add_argument(
+        "--method",
+        type=str,
+        default="all",
+        choices=["watershed", "graph", "retail", "all"],
+    )
     parser.add_argument("--num_samples", type=int, default=10)
     args = parser.parse_args()
 
@@ -705,8 +759,17 @@ if __name__ == "__main__":
                 m["time_ms"] = round(dt * 1000, 1)
                 all_metrics.append(m)
 
-            avg = {k: np.mean([m[k] for m in all_metrics])
-                   for k in ["count_error", "precision", "recall", "f1", "mean_iou", "time_ms"]}
+            avg = {
+                k: np.mean([m[k] for m in all_metrics])
+                for k in [
+                    "count_error",
+                    "precision",
+                    "recall",
+                    "f1",
+                    "mean_iou",
+                    "time_ms",
+                ]
+            }
             print(f"  Count MAE: {avg['count_error']:.1f}")
             print(f"  Precision: {avg['precision']:.3f}")
             print(f"  Recall:    {avg['recall']:.3f}")
