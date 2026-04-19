@@ -7,6 +7,8 @@ Implements:
   - compute_ap: Average Precision at a given IoU threshold
   - compute_map: Mean Average Precision (mAP@0.5, mAP@0.5:0.95)
   - count_mae: Mean Absolute Error of object counts
+  - count_rmse: Root Mean Squared Error of object counts
+  - compute_iou_coverage: Mean Max-IoU coverage for Ground Truths
   - compute_fps: Frames per second benchmark
   - full_evaluation: Comprehensive evaluation across all metrics
 
@@ -390,6 +392,71 @@ def count_mae(
     return float(np.mean(np.abs(pred - gt)))
 
 
+def count_rmse(
+    pred_counts: Union[List[int], np.ndarray],
+    gt_counts: Union[List[int], np.ndarray],
+) -> float:
+    """
+    Compute Root Mean Squared Error of object counts.
+
+    Parameters
+    ----------
+    pred_counts : array-like
+        Predicted number of objects per image.
+    gt_counts : array-like
+        Ground truth number of objects per image.
+
+    Returns
+    -------
+    float
+        Root mean squared error.
+    """
+    pred = np.asarray(pred_counts, dtype=np.float64)
+    gt = np.asarray(gt_counts, dtype=np.float64)
+
+    assert len(pred) == len(gt), f"Length mismatch: {len(pred)} vs {len(gt)}"
+
+    return float(np.sqrt(np.mean(np.square(pred - gt))))
+
+def compute_iou_coverage(
+    pred_boxes: Union[List, np.ndarray],
+    gt_boxes: Union[List, np.ndarray],
+) -> float:
+    """
+    Compute IoU coverage (mean of the max IoU for each Ground Truth box).
+
+    Parameters
+    ----------
+    pred_boxes : array-like, shape (P, 4)
+    gt_boxes : array-like, shape (G, 4)
+
+    Returns
+    -------
+    float
+        Mean IoU coverage [0, 1]. Returns 1.0 if G==0, else 0.0 if P==0.
+    """
+    pred_boxes = (
+        np.asarray(pred_boxes, dtype=np.float64).reshape(-1, 4)
+        if len(pred_boxes) else np.empty((0, 4))
+    )
+    gt_boxes = (
+        np.asarray(gt_boxes, dtype=np.float64).reshape(-1, 4)
+        if len(gt_boxes) else np.empty((0, 4))
+    )
+
+    P = len(pred_boxes)
+    G = len(gt_boxes)
+
+    if G == 0:
+        return 1.0
+    if P == 0:
+        return 0.0
+
+    iou_mat = compute_iou_matrix(pred_boxes, gt_boxes) # Shape (P, G)
+    max_ious = np.max(iou_mat, axis=0) # Max IoU for each GT (Shape G)
+    return float(np.mean(max_ious))
+
+
 # ====================================================================
 # 6. FPS Benchmark
 # ====================================================================
@@ -476,8 +543,8 @@ def full_evaluation(
     -------
     dict with keys:
         mAP@0.5, mAP@0.5:0.95,
-        count_mae, count_error_std,
-        avg_precision, avg_recall, avg_f1, avg_iou,
+        count_mae, count_rmse, count_error_std,
+        avg_precision, avg_recall, avg_f1, avg_iou, iou_coverage,
         total_images, total_gt_objects, total_pred_objects,
         per_image: list of per-image metrics
     """
@@ -530,17 +597,20 @@ def full_evaluation(
                 "recall": round(rec, 4),
                 "f1": round(f1, 4),
                 "mean_iou": round(avg_iou, 4),
+                "iou_coverage": round(compute_iou_coverage(p_boxes, g_boxes), 4),
             }
         )
 
     # ---- Aggregate ----
     mae = count_mae(pred_counts_list, gt_counts_list)
+    rmse = count_rmse(pred_counts_list, gt_counts_list)
     count_errors = np.abs(np.array(pred_counts_list) - np.array(gt_counts_list))
 
     avg_prec = float(np.mean([r["precision"] for r in per_image]))
     avg_rec = float(np.mean([r["recall"] for r in per_image]))
     avg_f1 = float(np.mean([r["f1"] for r in per_image]))
     avg_iou = float(np.mean([r["mean_iou"] for r in per_image]))
+    avg_iou_coverage = float(np.mean([r["iou_coverage"] for r in per_image]))
 
     return {
         # mAP
@@ -548,12 +618,14 @@ def full_evaluation(
         "mAP@0.5:0.95": round(map_results["mAP@0.5:0.95"], 4),
         # Counting
         "count_mae": round(mae, 4),
+        "count_rmse": round(rmse, 4),
         "count_error_std": round(float(np.std(count_errors)), 4),
         # Detection quality
         "avg_precision": round(avg_prec, 4),
         "avg_recall": round(avg_rec, 4),
         "avg_f1": round(avg_f1, 4),
         "avg_iou": round(avg_iou, 4),
+        "iou_coverage": round(avg_iou_coverage, 4),
         # Totals
         "total_images": n,
         "total_gt_objects": total_gt,
