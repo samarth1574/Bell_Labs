@@ -1,0 +1,29 @@
+# dl_softnms_density.yaml
+# Advanced configuration tailored for high-density object segmentation (Phase 2).
+model:
+  backbone: "mobilenet_v3"
+  use_density_head: true
+
+nms:
+  method: "soft_gaussian"
+  iou_threshold: 0.5
+  score_thresh: 0.1
+  sigma: 0.5
+  
+anchors:
+  use_custom_dense_anchors: true
+
+dataset:
+  batch_size: 8
+  num_workers: 4
+  prefetch_factor: 2
+  use_flips: true
+  use_jitter: true
+  advanced_aug: "mixup"
+  oversample_dense: true
+
+training:
+  weight_decay: 0.0005
+  dropout: 0.2
+  patience: 15
+  focal_loss: true
