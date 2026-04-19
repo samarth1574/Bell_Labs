@@ -220,12 +220,33 @@ smoothing ($\sigma=0.5$) provides robust super-pixel boundaries suitable for ret
 Hough-line-based shelf detection applies a structured grid-layout prior to constrain the
 search space, drastically pruning false positive localizations situated in mid-air spaces.
 
+\subsubsection{Machine Learning Classification \& Bias-Variance Analysis}
+To refine coarse proposals, we extract hand-crafted region statistics including bounding box area, aspect ratio, solidity, and Sobel edge density. These features are classified via a Random Forest model acting as a secondary filter.
+
+\textbf{Bias-Variance Tradeoff}: Pure heuristic approaches exhibit \textit{high bias} (underfitting) on dense occlusion tasks as geometric assumptions collapse under variability. In contrast, non-linear ML trees increase \textit{variance} but severely slash bias by discovering complex multi-dimensional thresholds the heuristics cannot express. Coupling high-variance RF classifiers with high-bias Morphological priors gracefully manages the dense-detection generalization bound.
+
 % ------------------------------------------------------------
 \subsection{Deep Learning Model}
 \label{sec:dl_model}
 
-We use a pretrained Faster~R-CNN with both ResNet-50 and MobileNetV3-Large
-backbones from \texttt{torchvision}. The key modification removes standard `nms()` and integrates Soft-NMS via PyTorch implementations supporting gradient tracking.
+We formalize our core framework heavily around a pretrained Faster~R-CNN architecture from \texttt{torchvision}. The key modification removes standard `nms()` and integrates \textbf{Soft-NMS} (detailed in Section~\ref{sec:soft_nms_theory}) via custom PyTorch implementations supporting gradient tracking.
+
+\subsubsection{Modern Convolutions and Multi-Scale Features}
+To accurately capture the diverse scale variances exhibited by retail shelving, the backbones (ResNet-50 and MobileNetV3-Large) compute hierarchical activations which are subsequently fed into a Feature Pyramid Network (FPN). The FPN fuses semantically strong, spatially coarse features from deeper convolutional stages with high-resolution details from shallower stages. For densely occluded small objects (such as clustered retail items), we override traditional RPN generators with tailored dense anchor bases defined explicitly at scales $((8), (16), (32), (64), (128))$ to guarantee overlapping instance recall.
+
+\subsubsection{Loss Function Decomposition}
+The optimization explicitly minimizes a multi-task loss spanning structural boundary and categorical parameters:
+\begin{equation}
+   \mathcal{L}_{total} = \lambda_1 \mathcal{L}_{cls} + \lambda_2 \mathcal{L}_{box} + \lambda_3 \mathcal{L}_{density}
+\end{equation}
+Where $\mathcal{L}_{box}$ employs Smooth-$\mathcal{L}_1$ loss governing the coordinates: $(x, y, w, h)$. Historically, density-induced background dominance drowns foreground loss signals. Consequently, $\mathcal{L}_{cls}$ replaces standard Cross-Entropy via the \textbf{Focal Loss} adapter:
+\begin{equation}
+  \mathcal{L}_{focal} = -\alpha (1 - p_t)^{\gamma} \log(p_t)
+\end{equation}
+Equipping $\gamma = 2.0$ forces the gradient to strictly penalize hard, misclassified highly-occluded items while flattening gradients from trivially correct sparse regions.
+
+\subsubsection{Optimizer and Learning-Rate Schedules}
+Training dense object detectors poses extreme risks of catastrophic forgetting under noisy labels. We justify the selection of \textbf{AdamW} ($L_2$ regularization $\beta_2=0.999$, weight decay $= 0.0005$) over standard SGD due to its decoupled weight decay properties which uniquely preserve magnitude stability within the Feature Pyramid. Furthermore, a dynamic Cosine Annealing learning rate schedule paired with Early Stopping monitors validation mAP plateaus, actively slashing $lr$ to negotiate local minima specifically governing intertwined bounding-box regressions without over-stepping parameters heavily tuned to occlusion shapes.
 
 \textbf{Soft-NMS configuration.} We swept the Gaussian decay parameter
 $\sigma \in \{0.3, 0.5, 0.7\}$ against varying confidence thresholds, finding $\sigma=0.5$ generally optimum alongside an $S_t = 0.01$ exit condition.
