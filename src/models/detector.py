@@ -37,6 +37,8 @@ from PIL import Image
 from torchvision import transforms
 
 from src.models.soft_nms import soft_nms
+from src.models.config import DetectorConfig
+from src.models.density_head import add_density_head_to_backbone
 
 # ---- Paths ----
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -88,6 +90,7 @@ class DenseObjectDetector:
 
     def __init__(
         self,
+        config_path: Optional[str] = None,
         backbone: str = "mobilenet_v3",
         nms_method: str = "soft_gaussian",
         sigma: float = 0.5,
@@ -95,14 +98,27 @@ class DenseObjectDetector:
         score_thresh: float = 0.3,
         device: str = "cpu",
     ):
-        self.backbone = backbone
-        self.nms_method = nms_method
-        self.sigma = sigma
-        self.iou_threshold = iou_threshold
-        self.score_thresh = score_thresh
-        self.device = torch.device(device)
+        if config_path:
+            self.config = DetectorConfig.from_yaml(config_path)
+            self.backbone = self.config.model.backbone
+            self.nms_method = self.config.nms.method
+            self.sigma = self.config.nms.sigma
+            self.iou_threshold = self.config.nms.iou_threshold
+            self.score_thresh = self.config.nms.score_thresh
+            self.use_density_head = self.config.model.use_density_head
+            self.use_custom_anchors = self.config.anchors.use_custom_dense_anchors
+        else:
+            self.config = None
+            self.backbone = backbone
+            self.nms_method = nms_method
+            self.sigma = sigma
+            self.iou_threshold = iou_threshold
+            self.score_thresh = score_thresh
+            self.use_density_head = False
+            self.use_custom_anchors = False
 
-        self._soft_method = NMS_METHODS.get(nms_method, "gaussian")
+        self.device = torch.device(device)
+        self._soft_method = NMS_METHODS.get(self.nms_method, "gaussian")
 
         self.model = None
         self._transform = transforms.Compose(
@@ -144,6 +160,21 @@ class DenseObjectDetector:
                 f"Unknown backbone '{self.backbone}'. "
                 f"Choose from: 'resnet50', 'mobilenet_v3'"
             )
+
+        if self.use_custom_anchors:
+            print("[detector] Applying custom small anchor sizes for dense objects...")
+            from torchvision.models.detection.anchor_utils import AnchorGenerator
+            # Match standard torchvision anchor generator parameter format
+            # 5 features levels -> 5 tuples of sizes
+            anchor_sizes = ((8,), (16,), (32,), (64,), (128,))
+            aspect_ratios = ((0.5, 1.0, 2.0),) * len(anchor_sizes)
+            self.model.rpn.anchor_generator = AnchorGenerator(sizes=anchor_sizes, aspect_ratios=aspect_ratios)
+
+        if self.use_density_head:
+            print("[detector] Equipping lightweight Density Head...")
+            # We wrap the backbone so that during inference/train it internally yields a count count mapping
+            # which does not disrupt the usual forward pass to the FPN/RPN.
+            self.model.backbone = add_density_head_to_backbone(self.model.backbone)
 
         # Override built-in NMS to be permissive
         # This lets our Soft-NMS handle the suppression
@@ -432,6 +463,9 @@ def main():
         action="store_true",
         help="Save visualisation to reports/figures/",
     )
+    parser.add_argument(
+        "--config", type=str, default=None, help="Path to YAML config (e.g. configs/dl_default.yaml)"
+    )
     parser.add_argument("--benchmark", action="store_true", help="Run speed benchmark")
     parser.add_argument(
         "--n_runs", type=int, default=10, help="Number of benchmark runs"
@@ -439,6 +473,7 @@ def main():
     args = parser.parse_args()
 
     detector = DenseObjectDetector(
+        config_path=args.config,
         backbone=args.backbone,
         nms_method=args.nms,
         sigma=args.sigma,
