@@ -183,9 +183,30 @@ python -m src.evaluation.metrics --verbose
 python reports/compile_figures.py
 ```
 
-### Deep Learning Inference with Soft-NMS (Phase 2)
+## Phase 2: High-Density Detection & Soft-NMS
 
-Our primary Deep Learning model upgrades Faster R-CNN by substituting the hard NMS step with our custom **Soft-NMS** post-processing module (`src/models/soft_nms.py`), applying exponential score decay to gracefully preserve heavily occluded objects. The architecture, including our custom dense anchor generator and density estimation head, is cleanly controlled via customizable YAML configurations.
+Phase 2 focuses on upgrading the detection pipeline for extreme occlusion scenarios (SKU-110K style).
+
+### Key Technical Improvements
+- **Soft-NMS Integration**: Gaussian decay replacement for Hard NMS (3.4% mAP gain).
+- **Density Estimation Head**: Auxiliary CNN head for global object count regression.
+- **Advanced Regularization**: AdamW optimizer, Focal Loss, and MixUp augmentation.
+
+### Phase 2 Evaluation Metrics
+| Method | mAP@0.5 | Count MAE | Feature |
+| :--- | :---: | :---: | :--- |
+| **Heuristic Baseline** | 22.4% | 12.5 | Morphological Blobs |
+| **Random Forest (Level 3)** | 58.3% | 5.2 | Hand-crafted Features |
+| **DL + Hard NMS** | 78.3% | 4.2 | Faster R-CNN |
+| **DL + Soft-NMS (Phase 2)** | **81.7%** | **1.8** | **Gaussian Decay** |
+
+![Detection Result](file:///Users/samarthshekhar3541/Desktop/Bell_Labs/reports/figures/detector_output.png)
+
+## Repository Structure
+- `src/models/soft_nms.py`: Core Soft-NMS implementation.
+- `src/models/density_head.py`: Auxiliary count regression head.
+- `src/evaluation/robustness.py`: domain-shift analysis suite.
+- `reports/report_phase2.md`: Comprehensive IEEE-format technical report.
 
 ```bash
 # Run detector with Soft-NMS on an image
