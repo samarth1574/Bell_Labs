@@ -40,6 +40,8 @@ data/synthetic/images/
 data/synthetic/masks/
 data/synthetic/annotations.json
 data/synthetic/metadata.csv
+data/sku110k/
+runs/
 
 # ============================================================
 # Model Weights (large — don't commit)

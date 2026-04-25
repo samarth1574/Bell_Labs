@@ -1,0 +1,31 @@
+Component,Score,Level,Criteria Description
+Hybrid Innovation,0,Disconnected,Models are effectively independent. Two separate projects glued together without interaction.
+Hybrid Innovation,1,Trivial,"Naive combination (e.g., simple averaging of predictions) without justification for why this specific combination makes sense."
+Hybrid Innovation,2,Sequential,Linear flow only (Model A output -> Model B input). No feedback loop or complex interaction. The DL model adds little value over the ML baseline.
+Hybrid Innovation,3,Logical (Proficient),"Logical hybrid architecture. The combination addresses a specific weakness of one model (e.g., using a Bayesian Net to explain LLM uncertainty)."
+Hybrid Innovation,4,Integrated,"Strong coupling. The system leverages the strengths of both (e.g., Neural Feature extraction feeding a symbolic reasoning engine). Performance improves noticeably."
+Hybrid Innovation,5,Synergistic (Exemplary),"The DL model significantly and logically improves upon the ML baseline. The interaction is symbiotic (e.g., Neuro-symbolic or Differentiable Programming). The whole is greater than the sum of parts."
+Ablation Studies,0,Missing,No comparison or ablation attempted.
+Ablation Studies,1,Unfair,Compares the Hybrid model against a weak or un-tuned baseline to artificially inflate success.
+Ablation Studies,2,Incomplete,Mentions other models but does not provide concrete metrics comparing them on the same test set.
+Ablation Studies,3,Standard (Proficient),"Clear table present showing results for ML-only, DL-only, and Hybrid. Metrics are consistent."
+Ablation Studies,4,interpreted,Discusses the table results. Explains which specific component contributed the most to the performance gain.
+Ablation Studies,5,Diagnostic (Exemplary),"Deep analysis showing exactly WHAT happens when the DL or ML part is removed (e.g., ""Removing the LSTM caused accuracy on long sequences to drop by 20%""). proves necessity of complexity."
+Architecture Diagram,0,Missing,No diagram provided.
+Architecture Diagram,1,Illegible,"Low-resolution screenshot, hand-drawn sketch, or illegible text."
+Architecture Diagram,2,Generic,"Generic block diagram (e.g., boxes labeled just ""Model"" or ""Input"") that could apply to any project."
+Architecture Diagram,3,Functional (Proficient),High-level visual showing data flow between probabilistic and neural models. Direction of arrows is correct.
+Architecture Diagram,4,Detailed,"Includes shapes of data tensors (e.g., (Batch, 256, 256)) and specific layer names. clear distinction between the ML and DL components."
+Architecture Diagram,5,Publication-Ready (Exemplary),"Professional-grade. Uses standard notation. Visualizes the specific fusion mechanism (e.g., concatenation vs multiplication). Aesthetically suitable for a conference paper."
+Reproducibility,0,Broken,Code does not run. Missing files or syntax errors.
+Reproducibility,1,Local-Only,"Hardcoded paths (e.g., ""/Users/Name/Desktop...""). No requirements file."
+Reproducibility,2,Messy,Code runs but requires significant debugging by the grader. Poor variable naming or structure.
+Reproducibility,3,Organized (Proficient),Clean GitHub repo with requirements.txt. Code follows a logical structure and runs with standard commands.
+Reproducibility,4,Documented,Includes a Readme with setup instructions. Code is commented. Environment is reproducible.
+Reproducibility,5,Turn-Key (Exemplary),Fully reproducible pipeline. Dockerized or includes a setup script. Follows standard conference paper formatting for the report.
+Extra Mile,0,None,No additional features implemented.
+Extra Mile,1,Weak,"Attempted an extra feature but it is non-functional or trivial (e.g., simple color change in a plot)."
+Extra Mile,2,Attempted,"One extra feature implemented, but it is buggy or barely adds value."
+Extra Mile,3,Solid (Proficient),"Well thought out implementation of 1 significant extra parameter (e.g., a functional Web UI or Deployment)."
+Extra Mile,4,Strong,"Well thought out implementation of 2 significant extra parameters (e.g., UI + CI/CD Pipeline)."
+Extra Mile,5,Outstanding (Exemplary),"Well thought out implementation of 3 or more extra mile parameters, OR one massive research-grade addition (e.g., writing a custom CUDA kernel or novel theoretical proof)."

@@ -1,0 +1,87 @@
+# ============================================================
+# Python
+# ============================================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+*.egg
+dist/
+build/
+*.so
+
+# ============================================================
+# Virtual Environments
+# ============================================================
+venv/
+env/
+.venv/
+.env/
+
+# ============================================================
+# Jupyter Notebooks
+# ============================================================
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# ============================================================
+# Data Files (large — don't commit)
+# ============================================================
+data/raw/*.jpg
+data/raw/*.jpeg
+data/raw/*.png
+data/raw/*.csv
+data/raw/*.zip
+data/raw/*.tar.gz
+data/processed/*.jpg
+data/processed/*.png
+data/processed/*.json
+data/synthetic/images/
+data/synthetic/masks/
+data/synthetic/annotations.json
+data/synthetic/metadata.csv
+data/sku110k/
+runs/
+
+# ============================================================
+# Model Weights (large — don't commit)
+# ============================================================
+*.pt
+*.pth
+*.onnx
+*.tflite
+/models/
+checkpoints/
+
+# ============================================================
+# Experiment Outputs (optional — keep logs, skip large files)
+# ============================================================
+experiments/*.json
+experiments/*.csv
+!experiments/experiment_log.md
+
+# ============================================================
+# IDE & Editor
+# ============================================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ============================================================
+# OS
+# ============================================================
+.DS_Store
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+
+# ============================================================
+# Misc
+# ============================================================
+*.log
+*.tmp
+.cache/

@@ -1,0 +1,39 @@
+# Phase 3 hybrid SKU-110K configuration.
+# Best practical detector choice: YOLO11 fine-tuned on SKU-110K, with
+# classical density/count priors used as a coupled calibration layer.
+
+dataset:
+  root: data/sku110k
+  data_yaml: data/sku110k/sku110k.yaml
+  fraction: 0.25          # Train on 25% of SKU-110K images
+  min_objects: 1
+  max_objects: 50
+  seed: 42
+
+dl:
+  model: yolo11l.pt
+  epochs: 100
+  imgsz: 960
+  batch: 8
+  workers: 4
+  patience: 20
+  optimizer: AdamW
+  lr0: 0.001
+  weight_decay: 0.0005
+  device: null
+
+hybrid:
+  nms_method: soft_gaussian
+  sigma: 0.5
+  iou_threshold: 0.5
+  score_threshold: 0.08
+  score_alpha: 0.70
+  density_beta: 0.20
+  count_gamma: 0.10
+  count_tolerance: 0.20
+  max_detections: 300
+  ablations:
+    - ml_only
+    - dl_only
+    - dl_soft_nms
+    - hybrid

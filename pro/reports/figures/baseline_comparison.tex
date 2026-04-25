@@ -1,0 +1,26 @@
+\begin{table}
+\caption{Baseline method comparison across occlusion levels.}
+\label{tab:baseline_comparison}
+\begin{tabular}{llrrrrrr}
+\toprule
+Method & Occlusion & Count MAE & Precision & Recall & F1 & Mean IoU & Avg Time (ms) \\
+\midrule
+GraphSeg & 0% & 33.800 & 0.389 & 0.940 & 0.547 & 0.912 & 35.760 \\
+GraphSeg & 25% & 9.600 & 0.489 & 0.664 & 0.552 & 0.827 & 49.300 \\
+GraphSeg & 50% & 5.000 & 0.433 & 0.500 & 0.458 & 0.849 & 59.000 \\
+GraphSeg & 75% & 12.000 & 0.491 & 0.343 & 0.394 & 0.764 & 65.400 \\
+Heuristic & 0% & 9.600 & 0.945 & 0.669 & 0.765 & 0.917 & 6.080 \\
+Heuristic & 25% & 33.000 & 0.400 & 0.025 & 0.047 & 0.731 & 1.600 \\
+Heuristic & 50% & 21.600 & 0.300 & 0.041 & 0.071 & 0.325 & 1.580 \\
+Heuristic & 75% & 29.600 & 0.050 & 0.004 & 0.008 & 0.152 & 1.460 \\
+RetailPrior & 0% & 33.800 & 0.389 & 0.940 & 0.547 & 0.912 & 36.440 \\
+RetailPrior & 25% & 8.400 & 0.502 & 0.665 & 0.564 & 0.827 & 50.080 \\
+RetailPrior & 50% & 5.200 & 0.439 & 0.495 & 0.459 & 0.847 & 65.700 \\
+RetailPrior & 75% & 12.600 & 0.522 & 0.358 & 0.416 & 0.750 & 66.500 \\
+Watershed & 0% & 10.800 & 0.500 & 0.306 & 0.373 & 0.759 & 4.000 \\
+Watershed & 25% & 29.600 & 0.739 & 0.155 & 0.242 & 0.769 & 2.500 \\
+Watershed & 50% & 20.600 & 0.750 & 0.124 & 0.203 & 0.628 & 2.200 \\
+Watershed & 75% & 29.800 & 0.700 & 0.038 & 0.072 & 0.655 & 2.000 \\
+\bottomrule
+\end{tabular}
+\end{table}
