@@ -33,3 +33,7 @@ hybrid:
   count_tolerance: 0.20
   max_detections: 300
   ablations:
+    - ml_only
+    - dl_only
+    - dl_soft_nms
+    - hybrid

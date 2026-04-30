@@ -45,4 +45,6 @@ This writes `reports/phase3_ablation_results.csv` with:
 ## Sources
 
 - Official SKU-110K repository: https://github.com/eg4000/SKU110K_CVPR19
-- Ultralytics YOLO11
+- Ultralytics YOLO11 docs: https://docs.ultralytics.com/models/yolo11/
+- SKU-110K dataset metadata mirror: https://huggingface.co/datasets/Voxel51/sku110k_test
+- DenseDet SKU-110K reference implementation: https://github.com/Media-Smart/SKU110K-DenseDet

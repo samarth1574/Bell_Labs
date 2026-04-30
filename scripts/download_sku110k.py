@@ -336,4 +336,64 @@ def convert_to_yolo(split_frames: dict[str, pd.DataFrame], paths: PreparedPaths,
             label_path.write_text("\n".join(rows) + "\n", encoding="utf-8")
 
 
-def find_image_file(paths: PreparedPaths, image_name: str) ->
+def find_image_file(paths: PreparedPaths, image_name: str) -> Path | None:
+    candidates = [
+        paths.source_images_dir / image_name,
+        paths.root / image_name,
+        paths.root / "data" / "images" / image_name,
+    ]
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+    matches = list(paths.root.rglob(Path(image_name).name))
+    return matches[0] if matches else None
+
+
+def link_or_copy_file(src: Path, dest: Path) -> None:
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        dest.symlink_to(src.resolve())
+    except OSError:
+        shutil.copy2(src, dest)
+
+
+def write_data_yaml(paths: PreparedPaths) -> None:
+    text = "\n".join(
+        [
+            f"path: {paths.root.as_posix()}",
+            "train: images/train",
+            "val: images/val",
+            "test: images/test",
+            "names:",
+            "  0: sku",
+            "",
+        ]
+    )
+    paths.data_yaml.write_text(text, encoding="utf-8")
+
+
+def write_manifest(paths: PreparedPaths, split_frames: dict[str, pd.DataFrame], annotation_inputs: list[Path], args: argparse.Namespace) -> None:
+    manifest = {
+        "dataset": "SKU-110K",
+        "source": "Goldman et al. CVPR 2019 official dataset",
+        "license_note": "Academic and non-commercial use per official SKU-110K release.",
+        "annotation_files": [str(p) for p in annotation_inputs],
+        "filters": {"min_objects": args.min_objects, "max_objects": args.max_objects},
+        "splits": {
+            split: {"images": int(frame["image_name"].nunique()), "annotations": int(len(frame))}
+            for split, frame in split_frames.items()
+        },
+    }
+    paths.manifest.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+
+
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+if __name__ == "__main__":
+    main()
