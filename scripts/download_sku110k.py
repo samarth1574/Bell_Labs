@@ -56,7 +56,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--download", choices=["none", "full", "annotations"], default="none")
     parser.add_argument(
         "--fraction", type=float, default=0.25,
-        help="Fraction of unique images to keep (0.0–1.0). Use 0.25 to train on 25%% of SKU-110K.",
+        help="Fraction of unique images to keep (0.0-1.0). Use 0.25 to train on 25%% of SKU-110K.",
     )
     parser.add_argument("--min-objects", type=int, default=1)
     parser.add_argument("--max-objects", type=int, default=50)
@@ -304,7 +304,8 @@ def assign_splits(df: pd.DataFrame, files: Iterable[Path], seed: int) -> dict[st
             by_name[split] = pd.concat([by_name.get(split, pd.DataFrame()), piece], ignore_index=True)
 
     for split in SPLITS:
-        print(f"[sku110k] {split:>5}: {by_name[split]['image_name'].nunique():,} images")
+        frame = by_name.get(split, pd.DataFrame(columns=["image_name"]))
+        print(f"[sku110k] {split:>5}: {frame['image_name'].nunique():,} images")
     return by_name
 
 

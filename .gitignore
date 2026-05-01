@@ -85,3 +85,4 @@ ehthumbs.db
 *.log
 *.tmp
 .cache/
+ui/node_modules/
