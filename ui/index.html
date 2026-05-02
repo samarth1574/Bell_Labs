@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hybrid SKU Detector</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <div class="app-container">
+    <header class="header">
+      <h1>SKU-110K <span class="accent">Hybrid Detector</span></h1>
+      <p class="subtitle">Instance-level detection and segmentation of densely packed retail objects.</p>
+    </header>
+
+    <main class="main-content">
+      <div class="sidebar panel glassmorphism">
+        <h2>Configuration</h2>
+        
+        <div class="form-group">
+          <label for="mode-select">Inference Mode</label>
+          <select id="mode-select">
+            <option value="hybrid" selected>Hybrid (Soft-NMS + Priors)</option>
+            <option value="dl_soft_nms">DL + Soft-NMS</option>
+            <option value="dl_only">DL Only (Hard NMS)</option>
+            <option value="ml_only">Classical CV Only</option>
+          </select>
+        </div>
+
+        <div class="upload-area" id="drop-zone">
+          <input type="file" id="file-input" accept="image/*" hidden />
+          <div class="upload-icon">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="17 8 12 3 7 8"></polyline>
+              <line x1="12" y1="3" x2="12" y2="15"></line>
+            </svg>
+          </div>
+          <p>Drag & drop an image here</p>
+          <span class="or">or</span>
+          <button class="btn primary" id="browse-btn">Browse Files</button>
+        </div>
+
+        <button class="btn cta" id="analyze-btn" disabled>Analyze Image</button>
+
+        <div class="stats-box" id="stats-box" style="display: none;">
+          <h3>Detection Results</h3>
+          <div class="stat-row">
+            <span>Predicted Count:</span>
+            <span class="stat-value highlight" id="stat-count">-</span>
+          </div>
+          <div class="stat-row">
+            <span>Classical Density Prior:</span>
+            <span class="stat-value" id="stat-classical">-</span>
+          </div>
+          <div class="stat-row">
+            <span>Mode Run:</span>
+            <span class="stat-value" id="stat-mode">-</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="preview-area panel glassmorphism">
+        <div class="canvas-container" id="canvas-wrapper">
+          <div class="placeholder-text" id="placeholder-text">
+            Upload an image to see detection results
+          </div>
+          <img id="image-preview" style="display: none;" />
+          <canvas id="result-canvas"></canvas>
+          <div class="loader" id="loader" style="display: none;">
+            <div class="spinner"></div>
+            <p>Analyzing density and generating bounds...</p>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+  <script type="module" src="./main.js"></script>
+</body>
+</html>
