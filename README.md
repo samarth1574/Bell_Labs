@@ -365,4 +365,25 @@ MIT License. See [LICENSE](LICENSE) for details.
 | `configs/dl_default.yaml` | Phase-1 compatible YAML config |
 | `configs/dl_softnms_density.yaml` | Phase-2 advanced config (Soft-NMS, dense anchors, density head, augmentations) |
 | `src/models/config.py` | Dataclass-based YAML configuration loader |
-| `src/mod
+| `src/models/density_head.py` | Lightweight convolutional density estimation head |
+| `src/models/trainer_utils.py` | EarlyStopping, Focal Loss, AdamW optimizer, MixUp |
+| `src/dataset.py` | PyTorch Dataset with augmentations and weighted sampling |
+| `src/baseline/features.py` | Hand-crafted CV feature extraction |
+| `src/baseline/ml_model.py` | RandomForest classifier for proposal filtering |
+| `src/baseline/plots.py` | ML baseline visualization utilities |
+| `src/baseline/run_baseline.py` | ML baseline entry point |
+| `src/augmentations_eda.py` | Augmentation visualization script |
+| `src/evaluation/plots.py` | Training curves, density bins, qualitative comparisons |
+| `src/evaluation/compare_models.py` | 3-way model comparison table generator |
+| `src/evaluation/robustness.py` | Domain-shift robustness evaluation |
+
+### Modified Files
+| File | Changes |
+| :--- | :--- |
+| `src/models/detector.py` | Added `config_path` parameter, custom anchor injection, density head splicing |
+| `src/evaluation/metrics.py` | Added `count_rmse` and `compute_iou_coverage` |
+| `reports/latex/main.tex` | Added ML bias-variance subsection, DL loss decomposition, FPN/optimizer theory |
+| `README.md` | Updated structure tree, added Phase-2 run commands |
+
+### Phase-1 Backward Compatibility
+All original scripts and notebooks remain fully functional. The `--config` flag is optional; omitting it preserves exact Phase-1 behavior.
